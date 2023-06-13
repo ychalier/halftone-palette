@@ -162,6 +162,8 @@ class Screen {
         this.collapsed = false;
         this.color = "#000000";
         this.element = null;
+        this.channel = "brightness";
+        this.toggled = true;
     }
 
     create_element() {
@@ -180,6 +182,7 @@ class Screen {
 
     setup() {
         this.create_element();
+        this.add_checkbox_parameter_input("toggled");
         this.add_range_parameter_input("angle_degree", 0, 90, 1);
         this.add_range_parameter_input("grid_size", 8, 64, 1);
         this.add_checkbox_parameter_input("collapsed");
@@ -190,6 +193,7 @@ class Screen {
         this.add_checkbox_parameter_input("oneline");
         this.add_color_parameter_input("color");
         this.add_select_parameter_input("dot_style", ["pixelated_dots", "euclidean", "circles", "ellipsis", "hexagons"]);
+        this.add_select_parameter_input("channel", ["brightness", "r", "g", "b", "r+g", "r+b", "g+b"]);
     }
 
     add_color_parameter_input(parameter) {
@@ -289,6 +293,7 @@ class Screen {
     }
 
     draw() {
+        if (!this.toggled) return;
         this.controller.context.fillStyle = this.color;
         let angle = this.angle_degree / 180 * Math.PI;
         let x_center = this.controller.width / 2;
@@ -323,7 +328,7 @@ class Screen {
                     this.controller.context.stroke();
                 }
                 
-                let intensity = this.controller.intensity_at(x, y);
+                let intensity = this.controller.intensity_at(x, y, this.channel);
 
                 let radius = intensity * this.grid_size / 2 * this.raster_size;
 
@@ -394,7 +399,7 @@ class Controller {
         this.image_data = context.getImageData(0, 0, img.width, img.height);
     }
 
-    intensity_at(x, y) {
+    intensity_at(x, y, channel) {
         if (this.debug) {
             return Math.max(0, Math.min(1, x / this.width));
         }
@@ -423,8 +428,21 @@ class Controller {
         let r = this.image_data.data[k] / 255;
         let g = this.image_data.data[k + 1] / 255;
         let b = this.image_data.data[k + 2] / 255;
-        let intensity = (r + g + b) / 3;
-        return 1 - intensity;
+        if (channel == "brightness") {
+            return 1 - (r + g + b) / 3;
+        } else if (channel == "r") {
+            return r;
+        } else if (channel == "g") {
+            return g ;
+        } else if (channel == "b") {
+            return b;
+        } else if (channel == "r+g") {
+            return (r + g) / 2;
+        } else if (channel == "r+b") {
+            return (r + b) / 2;
+        } else if (channel == "g+b") {
+            return (g + b) / 2;
+        }
     }
 
     draw_screens() {
