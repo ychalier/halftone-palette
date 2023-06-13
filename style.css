@@ -3,11 +3,10 @@ html, body {
     margin: 0;
 }
 
-canvas {
-    border: 1px solid black;
-}
-
 #canvas {
+    position: sticky;
+    top: 1em;
+    border: 4px solid black;
     image-rendering: crisp-edges;
     max-width: 100vw;
     max-height: 100vh;
@@ -15,3 +14,102 @@ canvas {
     min-height: 512px;
 }
 
+html, body {
+    padding: 0;
+    margin: 0;
+}
+
+body {
+    display: flex;
+    flex-direction: row;
+    background-color: #181818;
+    color: white;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+#config {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    flex-direction: row;
+    padding: 1em;
+}
+
+#config > * {
+    border: 4px solid black;
+    background-color: #1f1f1f;
+    margin-right: 1em;
+    margin-bottom: 1em;
+    padding: 1em;
+}
+
+#canvas-wrapper {
+    padding: 1em;
+    position: relative;
+    background: white;
+    border-left: 4px solid #808080;
+}
+
+input, button, select, option {
+    font: inherit;
+}
+
+button {
+    padding: .4rem;
+    background-color: #181818;
+    border: 1px solid black;
+    color: inherit;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #505050;
+}
+
+.input-group {
+    margin-top: .8rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
+.input-group label {
+    user-select: none;
+}
+
+.input-group input[type="range"] {
+    width: 100%;
+}
+
+.input-group-boolean {
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+.input-group-boolean input {
+    margin-left: 0;
+}
+
+.input-group select {
+    background: #181818;
+    border-radius: 0;
+    border: 1px solid black;
+    color: inherit;
+    padding: .4rem;
+}
+
+.screen canvas {
+    margin-top: .8rem;
+    background: #181818;
+    border: 1px solid black;
+}
+
+.screen button {
+    margin-right: .4rem;
+}
+
+button:disabled {
+    opacity: .8;
+    cursor: default;
+}

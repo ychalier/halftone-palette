@@ -36,6 +36,9 @@ function get_property(obj, key, default_) {
 }
 
 
+var input_counter = 0;
+
+
 class LagrangeInterpolation {
 
     /* Adapted from https://gist.github.com/dburner/8550030 */
@@ -87,8 +90,8 @@ class CurveInput {
         this.dots = [[0, 0], [1, 1]];
         this.canvas = null;
         this.context = null;
-        this.size = 256;
-        this.padding = 8;
+        this.size = 224;
+        this.padding = 16;
         this.radius = 4;
         this.tol = 2 * this.radius / this.size;
         this.dragging = false;
@@ -109,8 +112,8 @@ class CurveInput {
         this.canvas.height = this.size + 2 * this.padding;
         container.appendChild(this.canvas);
         this.context = this.canvas.getContext("2d");
-        this.context.fillStyle = "black";
-        this.context.strokeStyle = "black";
+        this.context.fillStyle = "white";
+        this.context.strokeStyle = "white";
 
         var self = this;
         
@@ -175,7 +178,6 @@ class CurveInput {
 
     update(trigger_callback=true) {
         this.context.clearRect(0, 0, this.size + 2 * this.padding, this.size + 2 * this.padding);
-        this.context.fillStyle = "black";
         this.dots.forEach(dot => {
             let x = dot[0] * this.size - this.radius + this.padding;
             let y = (1 - dot[1]) * this.size - this.radius + this.padding;
@@ -216,8 +218,14 @@ class CurveInput {
 function create_parameter_input(ref, container, options, callback) {
     let group = document.createElement("div");
     group.classList.add("input-group");
+    if (options.type == "boolean") {
+        group.classList.add("input-group-boolean");
+    }
+    input_counter++;
+    let input_id = `input-${input_counter}`;
     let label = document.createElement("label");
     label.textContent = options.label;
+    label.setAttribute("for", input_id);
     group.appendChild(label);
     let input = null;
     let value_span = null;
@@ -249,10 +257,11 @@ function create_parameter_input(ref, container, options, callback) {
             input.appendChild(option_element);
         });
     }
+    input.id = input_id;
     group.appendChild(input);
     if (value_span != null) {
-        value_span.textContent = ref[options.attribute];
-        group.appendChild(value_span);
+        value_span.textContent = ` (${ref[options.attribute]})`;
+        label.appendChild(value_span);
     }
     input.addEventListener("input", () => {
         let new_value = null;
@@ -274,7 +283,7 @@ function create_parameter_input(ref, container, options, callback) {
             });
         }
         ref[options.attribute] = new_value;
-        if (value_span != null) value_span.textContent = new_value;
+        if (value_span != null) value_span.textContent = ` (${new_value})`;
         if (callback) callback();
     });
     container.appendChild(group);
@@ -430,15 +439,27 @@ class Screen {
     create_element() {
         this.element = document.createElement("div");
         this.element.classList.add("screen");
-        document.getElementById("screens").appendChild(this.element);
+        document.getElementById("config").appendChild(this.element);
+        
+        var self = this;
+        
         let delete_button = document.createElement("button");
         delete_button.textContent = "Delete";
-        var self = this;
         delete_button.addEventListener("click", () => {
             self.element.parentElement.removeChild(self.element);
             self.controller.delete_screen(this.index);
         });
         this.element.appendChild(delete_button);
+
+        let copy_button = document.createElement("button");
+        copy_button.textContent = "Copy";
+        copy_button.disabled = true;
+        this.element.appendChild(copy_button);
+
+        let paste_button = document.createElement("button");
+        paste_button.textContent = "Paste";
+        paste_button.disabled = true;
+        this.element.appendChild(paste_button);
     }
 
     setup() {
@@ -619,7 +640,7 @@ class Controller {
         let callback = () => { self.update(); };
         create_parameter_input(self, container, {
             attribute: "noise_level",
-            label: "Noise",
+            label: "Output noise",
             type: "range",
             min: 0,
             max: 1,
@@ -752,5 +773,7 @@ window.addEventListener("load", () => {
     document.getElementById("button-add-screen").addEventListener("click", () => {
         controller.add_screen();
     });
-    
+    document.getElementById("button-export").addEventListener("click", () => {
+        window.open(controller.canvas.toDataURL("image/png"), "_blank").focus();
+    });
 });
