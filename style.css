@@ -5,6 +5,9 @@ html, body {
 
 canvas {
     border: 1px solid black;
+}
+
+#canvas {
     image-rendering: crisp-edges;
     max-width: 100vw;
     max-height: 100vh;

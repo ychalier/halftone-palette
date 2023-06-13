@@ -36,6 +36,192 @@ function get_property(obj, key, default_) {
 }
 
 
+class Lagrange {
+
+    /* Adapted from https://gist.github.com/dburner/8550030 */
+
+    constructor(xys) {
+        this.xs = [];
+        this.ys = [];
+        xys.forEach(xy => {
+            this.xs.push(xy[0]);
+            this.ys.push(xy[1]);
+        });
+        this.ws = [];
+        let k = this.xs.length;
+        let w;
+        for (let j = 0; j < k; ++j) {
+            w = 1;
+            for (let i = 0; i < k; ++i) {
+                if (i != j) {
+                    w *= this.xs[j] - this.xs[i];
+                }
+            }
+            this.ws[j] = 1 / w;
+        }
+    }
+
+    f(x) {
+        let a = 0;
+        let b = 0;
+        let c = 0;
+        for (let j = 0; j < this.xs.length; ++j) {
+            if (x != this.xs[j]) {
+                a = this.ws[j] / (x - this.xs[j]);
+                b += a * this.ys[j];
+                c += a;
+            } else {
+                return this.ys[j];
+            }
+        }
+        return b / c;
+    }
+
+}
+
+
+class CurveInput {
+
+    constructor() {
+        this.dots = [[0, 0], [1, 1]];
+        this.canvas = null;
+        this.context = null;
+        this.size = 256;
+        this.padding = 8;
+        this.radius = 4;
+        this.tol = 2 * this.radius / this.size;
+        this.dragging = false;
+        this.moving_dot = null;
+        this.input = null;
+    }
+
+    cursor_position(event) {
+        let bounds = this.canvas.getBoundingClientRect();
+        return [
+            Math.max(0, Math.min(1, (event.clientX - bounds.left - this.padding) / this.size)),
+            1 - Math.max(0, Math.min(1, (event.clientY - bounds.top - this.padding) / this.size))
+        ];
+    }
+
+    setup(container) {
+        this.input = document.createElement("input");
+        this.input.type = "text";
+        this.input.hidden = true;
+        //container.appendChild(this.input); //TODO
+        this.input.value = JSON.stringify(this.dots);
+
+        this.canvas = document.createElement("canvas");
+        this.canvas.width = this.size + 2 * this.padding;
+        this.canvas.height = this.size + 2 * this.padding;
+        container.appendChild(this.canvas);
+        this.context = this.canvas.getContext("2d");
+        this.context.fillStyle = "black";
+        this.context.strokeStyle = "black";
+
+        var self = this;
+        
+        this.canvas.addEventListener("mousedown", (event) => {
+            self.dragging = true;
+            let pos = self.cursor_position(event);
+            for (let i = 0; i < self.dots.length; i++) {
+                if (Math.abs(self.dots[i][0] - pos[0]) + Math.abs(self.dots[i][1] - pos[1]) <= self.tol) {
+                    self.moving_dot = i;
+                    break;
+                }
+            }
+            if (self.moving_dot == null) {
+                self.dots.push([pos[0], pos[1]]);
+                self.dots.sort((a, b) => { return a[0] - b[0]; });
+                for (let i = 0; i < self.dots.length; i++) {
+                    if (self.dots[i][0] == pos[0] && self.dots[i][1] == pos[1]) {
+                        self.moving_dot = i;
+                        break;
+                    }
+                }
+            }
+            self.dots[self.moving_dot] == [pos[0], pos[1]];
+            self.update();
+        });
+
+        this.input.addEventListener("input", () => {
+            console.log("hello!");
+            self.dots = JSON.parse(self.input.value.trim());
+            self.update();
+        });
+
+        this.canvas.addEventListener("mousemove", (event) => {
+            if (!self.dragging) return;
+            let pos = self.cursor_position(event);
+            self.dots[self.moving_dot] = [pos[0], pos[1]];
+            self.update();
+        });
+
+        this.canvas.addEventListener("mouseup", (event) => {
+            self.dragging = false;
+            self.moving_dot = null;
+            self.update();
+        });
+
+        this.canvas.addEventListener("click", (event) => {
+            if (!event.shiftKey) return;
+            let pos = self.cursor_position(event);
+            let remove_index = null;
+            for (let i = 0; i < self.dots.length; i++) {
+                if (Math.abs(self.dots[i][0] - pos[0]) + Math.abs(self.dots[i][1] - pos[1]) <= self.tol) {
+                    remove_index = i;
+                    break;
+                }
+            }
+            if (remove_index != null) {
+                self.dots.splice(remove_index, 1);
+                self.update();
+            }
+        });
+
+        this.canvas.addEventListener("dblclick", (event) => {
+            self.dots = [[0, 0], [1, 1]];
+            self.update();
+        });
+
+    }
+
+    update() {
+        this.input.value = JSON.stringify(this.dots);
+        this.context.clearRect(0, 0, this.size + 2 * this.padding, this.size + 2 * this.padding);
+        this.context.fillStyle = "black";
+        this.dots.forEach(dot => {
+            let x = dot[0] * this.size - this.radius + this.padding;
+            let y = (1 - dot[1]) * this.size - this.radius + this.padding;
+            this.context.fillRect(x, y, 2 * this.radius, 2 * this.radius);
+        });
+
+        let sdots = [...this.dots];
+        if (sdots[0][0] != 0) {
+            sdots.splice(0, 0, [0, 0]);
+        }
+        if (sdots[sdots.length - 1][0] != 1) {
+            sdots.push([1, 1]);
+        }
+
+        let lagrange = new Lagrange(sdots);
+        this.context.beginPath();
+        this.context.moveTo(this.padding, this.size + this.padding);
+
+        for (let i = 0; i < this.size; i++) {
+            let x = i / (this.size - 1);
+            let y = lagrange.f(x);
+            this.context.lineTo(
+                x * this.size + this.padding,
+                (1 - y) * this.size + this.padding
+            );
+        }
+        this.context.stroke();
+
+    }
+
+}
+
+
 function create_parameter_input(ref, container, options, callback) {
     let group = document.createElement("div");
     group.classList.add("input-group");
@@ -278,7 +464,7 @@ class Screen {
         }, callback);
         create_parameter_input(self, this.element, {
             attribute: "interlaced",
-            label: "Iollapse",
+            label: "Collapse",
             type: "boolean",
         }, callback);
         create_parameter_input(self, this.element, {
@@ -562,4 +748,9 @@ window.addEventListener("load", () => {
     document.getElementById("button-add-screen").addEventListener("click", () => {
         controller.add_screen();
     });
+
+    let curve_input = new CurveInput();
+    curve_input.setup(document.getElementById("commands"));
+    curve_input.update();
+    
 });
