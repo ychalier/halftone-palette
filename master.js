@@ -31,6 +31,79 @@ function is_integer(x) {
 }
 
 
+function get_property(obj, key, default_) {
+    return (key in obj) ? obj[key] : default_;
+}
+
+
+function create_parameter_input(ref, container, options, callback) {
+    let group = document.createElement("div");
+    group.classList.add("input-group");
+    let label = document.createElement("label");
+    label.textContent = options.label;
+    group.appendChild(label);
+    let input = null;
+    let value_span = null;
+    if (options.type == "range") {
+        input = document.createElement("input");
+        input.value = ref[options.attribute];
+        input.type = "range";
+        input.min = options.min;
+        input.max = options.max;
+        input.step = get_property(options, "step", 1);
+        value_span = document.createElement("span");
+    } else if (options.type == "color") {
+        input = document.createElement("input");
+        input.value = ref[options.attribute];
+        input.type = "color";
+    } else if (options.type == "boolean") {
+        input = document.createElement("input");
+        input.type = "checkbox";
+        if (ref[options.attribute]) input.checked = true;
+    } else if (options.type == "select") {
+        input = document.createElement("select");
+        options.options.forEach(option => {
+            let option_element = document.createElement("option");
+            option_element.value = option; //TODO: consider using option label/value
+            option_element.textContent = option;
+            if (ref[options.attribute] == option) {
+                option_element.selected = true;
+            }
+            input.appendChild(option_element);
+        });
+    }
+    group.appendChild(input);
+    if (value_span != null) {
+        value_span.textContent = ref[options.attribute];
+        group.appendChild(value_span);
+    }
+    input.addEventListener("input", () => {
+        let new_value = null;
+        if (options.type == "range") {
+            if (is_integer(input.step)) {
+                new_value = parseInt(input.value);
+            } else {
+                new_value = parseFloat(input.value);
+            }
+        } else if (options.type == "color") {
+            new_value = input.value;
+        } else if (options.type == "boolean") {
+            new_value = input.checked;
+        } else if (options.type == "select") {
+            input.querySelectorAll("option").forEach(option => {
+                if (option.selected) {
+                    new_value = option.value;
+                }
+            });
+        }
+        ref[options.attribute] = new_value;
+        if (value_span != null) value_span.textContent = new_value;
+        if (callback) callback();
+    });
+    container.appendChild(group);
+}
+
+
 class Texture {
 
     constructor(size, relsize) {
@@ -156,14 +229,14 @@ class Screen {
         this.raster_size = 1;
         this.show_grid = false;
         this.interlaced = true;
-        this.debug = false;
         this.oneline = false;
         this.dot_style = "circles";
         this.collapsed = false;
         this.color = "#000000";
         this.element = null;
-        this.channel = "brightness";
+        this.channel = "darkness";
         this.toggled = true;
+        this.negative = false;
     }
 
     create_element() {
@@ -182,118 +255,81 @@ class Screen {
 
     setup() {
         this.create_element();
-        this.add_checkbox_parameter_input("toggled");
-        this.add_range_parameter_input("angle_degree", 0, 90, 1);
-        this.add_range_parameter_input("grid_size", 8, 64, 1);
-        this.add_checkbox_parameter_input("collapsed");
-        this.add_range_parameter_input("raster_size", 0.1, 2, 0.1);
-        this.add_checkbox_parameter_input("interlaced");
-        this.add_checkbox_parameter_input("show_grid");
-        this.add_checkbox_parameter_input("debug");
-        this.add_checkbox_parameter_input("oneline");
-        this.add_color_parameter_input("color");
-        this.add_select_parameter_input("dot_style", ["pixelated_dots", "euclidean", "circles", "ellipsis", "hexagons"]);
-        this.add_select_parameter_input("channel", ["brightness", "r", "g", "b", "r+g", "r+b", "g+b"]);
-    }
-
-    add_color_parameter_input(parameter) {
-        let container = this.element;
-        let group = document.createElement("div");
-        let label = document.createElement("label");
-        let input = document.createElement("input");
-        label.textContent = parameter;
         var self = this;
-        input.type = "color";        
-        input.value = this[parameter];
-        input.addEventListener("input", () => {
-            self[parameter] = input.value;
-            self.controller.update();
-        });
-        group.appendChild(label);
-        group.appendChild(input);
-        container.appendChild(group);
-    }
-
-    add_range_parameter_input(parameter, min, max, step) {
-        let container = this.element;
-        let group = document.createElement("div");
-        let label = document.createElement("label");
-        let input = document.createElement("input");
-        let span = document.createElement("span");
-        label.textContent = parameter;
-        var self = this;
-        input.type = "range";
-        input.min = min;
-        input.max = max;
-        input.step = step;
-        input.value = this[parameter];
-        input.addEventListener("input", () => {
-            span.textContent = input.value;
-            if (is_integer(step)) {
-                self[parameter] = parseInt(input.value);
-            } else {
-                self[parameter] = parseFloat(input.value);
-            }
-            self.controller.update();
-        });
-        span.textContent = this[parameter];
-        group.appendChild(label);
-        group.appendChild(input);
-        group.appendChild(span);
-        container.appendChild(group);
-    }
-
-    add_checkbox_parameter_input(parameter) {
-        let container = this.element;
-        let group = document.createElement("div");
-        let label = document.createElement("label");
-        let input = document.createElement("input");
-        input.type = "checkbox";
-        label.textContent = parameter;
-        var self = this;
-        if (this[parameter]) {
-            input.checked = true;
-        }
-        input.addEventListener("input", () => {
-            self[parameter] = input.checked;
-            self.controller.update();
-        });
-        group.appendChild(label);
-        group.appendChild(input);
-        container.appendChild(group);
-    }
-
-    add_select_parameter_input(parameter, options) {
-        let container = this.element;
-        let group = document.createElement("div");
-        let label = document.createElement("label");
-        let input = document.createElement("select");
-        label.textContent = parameter;
-        options.forEach(option_text => {
-            let option = document.createElement("option");
-            option.textContent = option_text;
-            if (this[parameter] == option_text) {
-                option.selected = true;
-            }
-            input.appendChild(option);
-        });
-        
-        var self = this;
-        input.addEventListener("input", () => {
-            input.querySelectorAll("option").forEach(option => {
-                if (option.selected) {
-                    self[parameter] = option.value;
-                }
-            });
-            self.controller.update();
-        });
-        group.appendChild(label);
-        group.appendChild(input);
-        container.appendChild(group);
+        let callback = () => { self.controller.update(); };
+        create_parameter_input(self, this.element, {
+            attribute: "toggled",
+            label: "Toggle",
+            type: "boolean"
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "angle_degree",
+            label: "Angle",
+            type: "range",
+            min: 0,
+            max: 90,
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "grid_size",
+            label: "Grid size",
+            type: "range",
+            min: 4,
+            max: 64,
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "interlaced",
+            label: "Iollapse",
+            type: "boolean",
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "show_grid",
+            label: "Show grid",
+            type: "boolean",
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "oneline",
+            label: "One line",
+            type: "boolean",
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "collapsed",
+            label: "Collapse",
+            type: "boolean",
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "raster_size",
+            label: "Dot size ratio",
+            type: "range",
+            min: 0,
+            max: 2,
+            step: 0.1
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "color",
+            label: "Dot color",
+            type: "color",
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "dot_style",
+            label: "Dot style",
+            type: "select",
+            options: ["pixelated_dots", "euclidean", "circles", "ellipsis", "hexagons"]
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "channel",
+            label: "Channel",
+            type: "select",
+            options: ["darkness", "red", "green", "blue", "yellow", "magenta", "cyan"]
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "negative",
+            label: "Negative",
+            type: "boolean",
+        }, callback);
     }
 
     draw() {
-        if (!this.toggled) return;
+        if (!this.toggled || this.raster_size == 0) return;
         this.controller.context.fillStyle = this.color;
         let angle = this.angle_degree / 180 * Math.PI;
         let x_center = this.controller.width / 2;
@@ -329,6 +365,9 @@ class Screen {
                 }
                 
                 let intensity = this.controller.intensity_at(x, y, this.channel);
+                if (this.negative) {
+                    intensity = 1 - intensity;
+                }
 
                 let radius = intensity * this.grid_size / 2 * this.raster_size;
 
@@ -379,12 +418,28 @@ class Controller {
         this.context = this.canvas.getContext("2d");
         
         this.noise_level = 0;
+        this.debug = false;
         this.screens = [];
     }
 
     setup() {
-        //this.add_range_parameter_input("noise_level", 0, 1, 0.01);
         this.load_original_image();
+        let container = document.getElementById("commands");
+        var self = this;
+        let callback = () => { self.update(); };
+        create_parameter_input(self, container, {
+            attribute: "noise_level",
+            label: "Noise",
+            type: "range",
+            min: 0,
+            max: 1,
+            step: 0.01
+        }, callback);
+        create_parameter_input(self, container, {
+            attribute: "debug",
+            label: "Use debugging gradient",
+            type: "boolean",
+        }, callback);
     }
 
     load_original_image() {
@@ -428,19 +483,19 @@ class Controller {
         let r = this.image_data.data[k] / 255;
         let g = this.image_data.data[k + 1] / 255;
         let b = this.image_data.data[k + 2] / 255;
-        if (channel == "brightness") {
+        if (channel == "darkness") {
             return 1 - (r + g + b) / 3;
-        } else if (channel == "r") {
+        } else if (channel == "red") {
             return r;
-        } else if (channel == "g") {
+        } else if (channel == "green") {
             return g ;
-        } else if (channel == "b") {
+        } else if (channel == "blue") {
             return b;
-        } else if (channel == "r+g") {
+        } else if (channel == "yellow") {
             return (r + g) / 2;
-        } else if (channel == "r+b") {
+        } else if (channel == "magenta") {
             return (r + b) / 2;
-        } else if (channel == "g+b") {
+        } else if (channel == "cyan") {
             return (g + b) / 2;
         }
     }
