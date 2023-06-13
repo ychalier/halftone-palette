@@ -147,19 +147,11 @@ function create_pixelated_euclidean_dots_texture_pack(dot_size) {
 }
 
 
-class Controller {
-
-    constructor(canvas_id, width, height) {
-        this.canvas = document.getElementById(canvas_id);
-        this.width = width;
-        this.height = height;
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
-        this.context = this.canvas.getContext("2d");
-        
+class Screen {
+    constructor(controller) {
+        this.controller = controller;
         this.angle_degree = 30;
         this.grid_size = 16;
-        this.noise_level = 0;
         this.raster_size = 1;
         this.show_grid = false;
         this.interlaced = true;
@@ -167,11 +159,31 @@ class Controller {
         this.oneline = false;
         this.dot_style = "circles";
         this.collapsed = false;
+        this.color = "red";
+        this.element = null;
+    }
 
+    create_element() {
+        this.element = document.createElement("div");
+        this.element.classList.add("screen");
+        document.getElementById("screens").appendChild(this.element);
+    }
+
+    setup() {
+        this.create_element();
+        this.add_range_parameter_input("angle_degree", 0, 90, 1);
+        this.add_range_parameter_input("grid_size", 8, 64, 1);
+        this.add_checkbox_parameter_input("collapsed");
+        this.add_range_parameter_input("raster_size", 0.1, 2, 0.1);
+        this.add_checkbox_parameter_input("interlaced");
+        this.add_checkbox_parameter_input("show_grid");
+        this.add_checkbox_parameter_input("debug");
+        this.add_checkbox_parameter_input("oneline");
+        this.add_select_parameter_input("dot_style", ["pixelated_dots", "euclidean", "circles", "ellipsis", "hexagons"]);
     }
 
     add_range_parameter_input(parameter, min, max, step) {
-        let container = document.getElementById("commands");
+        let container = this.element;
         let group = document.createElement("div");
         let label = document.createElement("label");
         let input = document.createElement("input");
@@ -190,7 +202,7 @@ class Controller {
             } else {
                 self[parameter] = parseFloat(input.value);
             }
-            self.update();
+            self.controller.update();
         });
         span.textContent = this[parameter];
         group.appendChild(label);
@@ -203,7 +215,7 @@ class Controller {
     }
 
     add_checkbox_parameter_input(parameter) {
-        let container = document.getElementById("commands");
+        let container = this.element;
         let group = document.createElement("div");
         let label = document.createElement("label");
         let input = document.createElement("input");
@@ -215,7 +227,7 @@ class Controller {
         }
         input.addEventListener("input", () => {
             self[parameter] = input.checked;
-            self.update();
+            self.controller.update();
         });
         group.appendChild(label);
         group.appendChild(input);
@@ -223,7 +235,7 @@ class Controller {
     }
 
     add_select_parameter_input(parameter, options) {
-        let container = document.getElementById("commands");
+        let container = this.element;
         let group = document.createElement("div");
         let label = document.createElement("label");
         let input = document.createElement("select");
@@ -244,24 +256,104 @@ class Controller {
                     self[parameter] = option.value;
                 }
             });
-            self.update();
+            self.controller.update();
         });
         group.appendChild(label);
         group.appendChild(input);
         container.appendChild(group);
     }
 
+    draw() {
+        this.controller.context.fillStyle = this.color;
+        let angle = this.angle_degree / 180 * Math.PI;
+        let x_center = this.controller.width / 2;
+        let y_center = this.controller.height / 2;
+        let grid_width = this.controller.width / this.grid_size;
+        let grid_height = this.controller.height / this.grid_size / (this.collapsed ? this.raster_size : 1);
+        let dots_texture_pack = create_pixelated_dots_texture_pack(10);
+        let euclidean_texture_pack = create_pixelated_euclidean_dots_texture_pack(10);
+
+        let row_start = -Math.floor(grid_height / 4);
+        let row_end = 1.25 * grid_height;
+        if (this.oneline) {
+            row_start = Math.floor(grid_height / 2);
+            row_end = row_start + 1;
+        }
+        for (let i = row_start; i < row_end; i++) {
+            for (let j = -Math.floor(grid_width / 4); j < 1.25 * grid_width; j++) {
+                let y_base = i * this.grid_size + .5 * this.grid_size;
+                if (this.collapsed) {
+                    y_base = i * this.grid_size * this.raster_size + .5 * this.grid_size * this.raster_size;
+                }
+                let x_base = j * this.grid_size + .5 * this.grid_size;
+                if (this.interlaced) {
+                    x_base += i % 2 * .5 * this.grid_size;
+                }
+                let x = Math.cos(angle) * (x_base - x_center) + Math.sin(angle) * (y_base - y_center) + x_center;
+                let y = -Math.sin(angle) * (x_base - x_center) + Math.cos(angle) * (y_base - y_center) + y_center;
+            
+                if (this.show_grid) {
+                    this.controller.context.strokeStyle = "black";
+                    draw_rotated_square(this.controller.context, x, y, this.grid_size, angle);
+                    this.controller.context.stroke();
+                }
+                
+                let intensity = this.controller.intensity_at(x, y);
+
+                let radius = intensity * this.grid_size / 2 * this.raster_size;
+
+                if (this.dot_style == "circles") {
+                    this.controller.context.beginPath();
+                    this.controller.context.arc(x, y, radius, 0, 2 * Math.PI);
+                    this.controller.context.fill();
+                } else if (this.dot_style == "euclidean") {
+                    let texture_index = Math.round(intensity * (euclidean_texture_pack.length - 1));
+                    let texture = euclidean_texture_pack[texture_index];
+                    texture.draw(this.controller.context, x, y, this.grid_size * this.raster_size, angle);
+                } else if (this.dot_style == "pixelated_dots") {
+                    let texture_index = Math.round(intensity * (dots_texture_pack.length - 1));
+                    let texture = dots_texture_pack[texture_index];
+                    texture.draw(this.controller.context, x, y, this.grid_size * this.raster_size, angle);
+                } else if (this.dot_style == "ellipsis") {
+                    this.controller.context.beginPath();
+                    this.controller.context.ellipse(x, y, radius, radius*0.5, -Math.PI / 4, 0, 2 * Math.PI);
+                    this.controller.context.fill();
+                } else if (this.dot_style == "hexagons") {
+                    let n = 6;
+                    let angle_offset = Math.PI / 6;
+                    // let angle_offset = 3 * Math.PI / 2; // Math.PI / n;
+                    // if (i % 2 == 0) angle_offset -= Math.PI;
+                    this.controller.context.beginPath();
+                    this.controller.context.moveTo(x + radius * Math.cos(angle_offset), y + radius* Math.sin(angle_offset));
+                    for (let k = 0; k <= n; k++) {
+                        this.controller.context.lineTo(x + radius * Math.cos(2 * k * Math.PI / n + angle_offset), y + radius * Math.sin(2 * k * Math.PI / n + angle_offset));
+                    }
+                    this.controller.context.fill();
+                }
+    
+            }
+        }
+    }
+
+}
+
+
+class Controller {
+
+    constructor(canvas_id, width, height) {
+        this.canvas = document.getElementById(canvas_id);
+        this.width = width;
+        this.height = height;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        this.context = this.canvas.getContext("2d");
+        
+        this.noise_level = 0;
+        this.screens = [];
+    }
+
     setup() {
-        this.add_range_parameter_input("angle_degree", 0, 90, 1);
-        this.add_range_parameter_input("grid_size", 8, 64, 1);
-        this.add_range_parameter_input("noise_level", 0, 1, 0.01);
-        this.add_checkbox_parameter_input("collapsed");
-        this.add_range_parameter_input("raster_size", 0.1, 2, 0.1);
-        this.add_checkbox_parameter_input("interlaced");
-        this.add_checkbox_parameter_input("show_grid");
-        this.add_checkbox_parameter_input("debug");
-        this.add_checkbox_parameter_input("oneline");
-        this.add_select_parameter_input("dot_style", ["pixelated_dots", "euclidean", "circles", "ellipsis", "hexagons"]);
+        //this.add_range_parameter_input("noise_level", 0, 1, 0.01);
         this.load_original_image();
     }
 
@@ -311,74 +403,9 @@ class Controller {
     }
 
     draw_screens() {
-        let angle = this.angle_degree / 180 * Math.PI;
-        let x_center = this.width / 2;
-        let y_center = this.height / 2;
-        let grid_width = this.width / this.grid_size;
-        let grid_height = this.height / this.grid_size / (this.collapsed ? this.raster_size : 1);
-        let dots_texture_pack = create_pixelated_dots_texture_pack(10);
-        let euclidean_texture_pack = create_pixelated_euclidean_dots_texture_pack(10);
-
-        let row_start = -Math.floor(grid_height / 4);
-        let row_end = 1.25 * grid_height;
-        if (this.oneline) {
-            row_start = Math.floor(grid_height / 2);
-            row_end = row_start + 1;
-        }
-        for (let i = row_start; i < row_end; i++) {
-            for (let j = -Math.floor(grid_width / 4); j < 1.25 * grid_width; j++) {
-                let y_base = i * this.grid_size + .5 * this.grid_size;
-                if (this.collapsed) {
-                    y_base = i * this.grid_size * this.raster_size + .5 * this.grid_size * this.raster_size;
-                }
-                let x_base = j * this.grid_size + .5 * this.grid_size;
-                if (this.interlaced) {
-                    x_base += i % 2 * .5 * this.grid_size;
-                }
-                let x = Math.cos(angle) * (x_base - x_center) + Math.sin(angle) * (y_base - y_center) + x_center;
-                let y = -Math.sin(angle) * (x_base - x_center) + Math.cos(angle) * (y_base - y_center) + y_center;
-            
-                if (this.show_grid) {
-                    this.context.strokeStyle = "black";
-                    draw_rotated_square(this.context, x, y, this.grid_size, angle);
-                    this.context.stroke();
-                }
-                
-                let intensity = this.intensity_at(x, y);
-                this.context.fillStyle = "black";
-                let radius = intensity * this.grid_size / 2 * this.raster_size;
-
-                if (this.dot_style == "circles") {
-                    this.context.beginPath();
-                    this.context.arc(x, y, radius, 0, 2 * Math.PI);
-                    this.context.fill();
-                } else if (this.dot_style == "euclidean") {
-                    let texture_index = Math.round(intensity * (euclidean_texture_pack.length - 1));
-                    let texture = euclidean_texture_pack[texture_index];
-                    texture.draw(this.context, x, y, this.grid_size * this.raster_size, angle);
-                } else if (this.dot_style == "pixelated_dots") {
-                    let texture_index = Math.round(intensity * (dots_texture_pack.length - 1));
-                    let texture = dots_texture_pack[texture_index];
-                    texture.draw(this.context, x, y, this.grid_size * this.raster_size, angle);
-                } else if (this.dot_style == "ellipsis") {
-                    this.context.beginPath();
-                    this.context.ellipse(x, y, radius, radius*0.5, -Math.PI / 4, 0, 2 * Math.PI);
-                    this.context.fill();
-                } else if (this.dot_style == "hexagons") {
-                    let n = 6;
-                    let angle_offset = Math.PI / 6;
-                    // let angle_offset = 3 * Math.PI / 2; // Math.PI / n;
-                    // if (i % 2 == 0) angle_offset -= Math.PI;
-                    this.context.beginPath();
-                    this.context.moveTo(x + radius * Math.cos(angle_offset), y + radius* Math.sin(angle_offset));
-                    for (let k = 0; k <= n; k++) {
-                        this.context.lineTo(x + radius * Math.cos(2 * k * Math.PI / n + angle_offset), y + radius * Math.sin(2 * k * Math.PI / n + angle_offset));
-                    }
-                    this.context.fill();
-                }
-    
-            }
-        }
+        this.screens.forEach(screen => {
+            screen.draw();
+        });
     }
 
     apply_noise() {
@@ -404,9 +431,14 @@ class Controller {
 
     update() {
         this.context.clearRect(0, 0, this.width, this.height);
-        this.context.fillStyle = "black";
         this.draw_screens();
         this.apply_noise();
+    }
+
+    add_screen() {
+        let screen = new Screen(this);
+        screen.setup();
+        this.screens.push(screen);
     }
 
 }
@@ -414,6 +446,9 @@ class Controller {
 window.addEventListener("load", () => {
     let controller = new Controller("canvas", 512, 512);
     controller.setup();
+    controller.add_screen();
+    controller.screens[0].color = "black";
+    controller.add_screen();
+    controller.screens[1].color = "blue";
     controller.update();
-
 });
