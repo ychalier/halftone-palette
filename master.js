@@ -153,6 +153,12 @@ class CurveInput {
             self.update();
         });
 
+        this.canvas.addEventListener("mouseleave", (event) => {
+            self.dragging = false;
+            self.moving_dot = null;
+            self.update();
+        });
+
         this.canvas.addEventListener("click", (event) => {
             if (!event.shiftKey) return;
             let pos = self.cursor_position(event);
