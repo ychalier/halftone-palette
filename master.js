@@ -148,7 +148,8 @@ function create_pixelated_euclidean_dots_texture_pack(dot_size) {
 
 
 class Screen {
-    constructor(controller) {
+    constructor(index, controller) {
+        this.index = index;
         this.controller = controller;
         this.angle_degree = 30;
         this.grid_size = 16;
@@ -167,6 +168,14 @@ class Screen {
         this.element = document.createElement("div");
         this.element.classList.add("screen");
         document.getElementById("screens").appendChild(this.element);
+        let delete_button = document.createElement("button");
+        delete_button.textContent = "Delete";
+        var self = this;
+        delete_button.addEventListener("click", () => {
+            self.element.parentElement.removeChild(self.element);
+            self.controller.delete_screen(this.index);
+        });
+        this.element.appendChild(delete_button);
     }
 
     setup() {
@@ -452,9 +461,22 @@ class Controller {
     }
 
     add_screen() {
-        let screen = new Screen(this);
+        let screen = new Screen(this.screens.length, this);
         screen.setup();
         this.screens.push(screen);
+    }
+
+    delete_screen(index) {
+        let delete_index = null;
+        for (let i = 0; i < this.screens.length; i++) {
+            if (this.screens[i].index == index) {
+                delete_index = i;
+                break;
+            }
+        }
+        if (delete_index == null) return;
+        this.screens.splice(delete_index, 1);
+        this.update();
     }
 
 }
@@ -464,4 +486,7 @@ window.addEventListener("load", () => {
     controller.setup();
     controller.add_screen();
     controller.update();
+    document.getElementById("button-add-screen").addEventListener("click", () => {
+        controller.add_screen();
+    });
 });
