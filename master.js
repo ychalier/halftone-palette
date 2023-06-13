@@ -36,7 +36,7 @@ function get_property(obj, key, default_) {
 }
 
 
-class Lagrange {
+class LagrangeInterpolation {
 
     /* Adapted from https://gist.github.com/dburner/8550030 */
 
@@ -82,7 +82,8 @@ class Lagrange {
 
 class CurveInput {
 
-    constructor() {
+    constructor(callback) {
+        this.callback = callback;
         this.dots = [[0, 0], [1, 1]];
         this.canvas = null;
         this.context = null;
@@ -92,7 +93,6 @@ class CurveInput {
         this.tol = 2 * this.radius / this.size;
         this.dragging = false;
         this.moving_dot = null;
-        this.input = null;
     }
 
     cursor_position(event) {
@@ -103,13 +103,7 @@ class CurveInput {
         ];
     }
 
-    setup(container) {
-        this.input = document.createElement("input");
-        this.input.type = "text";
-        this.input.hidden = true;
-        //container.appendChild(this.input); //TODO
-        this.input.value = JSON.stringify(this.dots);
-
+    setup(container) {        
         this.canvas = document.createElement("canvas");
         this.canvas.width = this.size + 2 * this.padding;
         this.canvas.height = this.size + 2 * this.padding;
@@ -140,12 +134,6 @@ class CurveInput {
                 }
             }
             self.dots[self.moving_dot] == [pos[0], pos[1]];
-            self.update();
-        });
-
-        this.input.addEventListener("input", () => {
-            console.log("hello!");
-            self.dots = JSON.parse(self.input.value.trim());
             self.update();
         });
 
@@ -185,8 +173,7 @@ class CurveInput {
 
     }
 
-    update() {
-        this.input.value = JSON.stringify(this.dots);
+    update(trigger_callback=true) {
         this.context.clearRect(0, 0, this.size + 2 * this.padding, this.size + 2 * this.padding);
         this.context.fillStyle = "black";
         this.dots.forEach(dot => {
@@ -203,19 +190,23 @@ class CurveInput {
             sdots.push([1, 1]);
         }
 
-        let lagrange = new Lagrange(sdots);
+        let interpolation = new LagrangeInterpolation(sdots);
         this.context.beginPath();
         this.context.moveTo(this.padding, this.size + this.padding);
 
         for (let i = 0; i < this.size; i++) {
             let x = i / (this.size - 1);
-            let y = lagrange.f(x);
+            let y = interpolation.f(x);
             this.context.lineTo(
                 x * this.size + this.padding,
                 (1 - y) * this.size + this.padding
             );
         }
         this.context.stroke();
+        
+        if (trigger_callback) {
+            this.callback(interpolation);
+        }
 
     }
 
@@ -287,6 +278,16 @@ function create_parameter_input(ref, container, options, callback) {
         if (callback) callback();
     });
     container.appendChild(group);
+}
+
+
+function create_curve_input(ref, container, attribute, callback) {
+    let curve_input = new CurveInput((interpolation) => {
+        ref[attribute] = interpolation;
+        callback();
+    });
+    curve_input.setup(container);
+    curve_input.update(false);
 }
 
 
@@ -423,6 +424,7 @@ class Screen {
         this.channel = "darkness";
         this.toggled = true;
         this.negative = false;
+        this.tone_curve = new LagrangeInterpolation([[0, 0], [1, 1]]);
     }
 
     create_element() {
@@ -512,6 +514,7 @@ class Screen {
             label: "Negative",
             type: "boolean",
         }, callback);
+        create_curve_input(self, this.element, "tone_curve", callback);
     }
 
     draw() {
@@ -551,6 +554,7 @@ class Screen {
                 }
                 
                 let intensity = this.controller.intensity_at(x, y, this.channel);
+                intensity = Math.max(0, Math.min(1, this.tone_curve.f(intensity)));
                 if (this.negative) {
                     intensity = 1 - intensity;
                 }
@@ -748,9 +752,5 @@ window.addEventListener("load", () => {
     document.getElementById("button-add-screen").addEventListener("click", () => {
         controller.add_screen();
     });
-
-    let curve_input = new CurveInput();
-    curve_input.setup(document.getElementById("commands"));
-    curve_input.update();
     
 });
