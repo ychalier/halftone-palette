@@ -159,7 +159,7 @@ class Screen {
         this.oneline = false;
         this.dot_style = "circles";
         this.collapsed = false;
-        this.color = "red";
+        this.color = "#000000";
         this.element = null;
     }
 
@@ -179,7 +179,26 @@ class Screen {
         this.add_checkbox_parameter_input("show_grid");
         this.add_checkbox_parameter_input("debug");
         this.add_checkbox_parameter_input("oneline");
+        this.add_color_parameter_input("color");
         this.add_select_parameter_input("dot_style", ["pixelated_dots", "euclidean", "circles", "ellipsis", "hexagons"]);
+    }
+
+    add_color_parameter_input(parameter) {
+        let container = this.element;
+        let group = document.createElement("div");
+        let label = document.createElement("label");
+        let input = document.createElement("input");
+        label.textContent = parameter;
+        var self = this;
+        input.type = "color";        
+        input.value = this[parameter];
+        input.addEventListener("input", () => {
+            self[parameter] = input.value;
+            self.controller.update();
+        });
+        group.appendChild(label);
+        group.appendChild(input);
+        container.appendChild(group);
     }
 
     add_range_parameter_input(parameter, min, max, step) {
@@ -209,9 +228,6 @@ class Screen {
         group.appendChild(input);
         group.appendChild(span);
         container.appendChild(group);
-        this.image_width = null;
-        this.image_height = null;
-        this.image_data = [];
     }
 
     add_checkbox_parameter_input(parameter) {
@@ -447,8 +463,5 @@ window.addEventListener("load", () => {
     let controller = new Controller("canvas", 512, 512);
     controller.setup();
     controller.add_screen();
-    controller.screens[0].color = "black";
-    controller.add_screen();
-    controller.screens[1].color = "blue";
     controller.update();
 });
