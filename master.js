@@ -487,7 +487,7 @@ class Screen {
         }, callback);
         create_parameter_input(self, this.element, {
             attribute: "interlaced",
-            label: "Collapse",
+            label: "Interlaced",
             type: "boolean",
         }, callback);
         create_parameter_input(self, this.element, {
