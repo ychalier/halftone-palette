@@ -469,6 +469,8 @@ class Screen {
         this.toggled = true;
         this.negative = false;
         this.tone_curve = new LagrangeInterpolation([[0, 0], [1, 1]]);
+        this.canvas = document.createElement("canvas");
+        this.context = this.canvas.getContext("2d");
     }
 
     export_config() {
@@ -619,8 +621,13 @@ class Screen {
     }
 
     draw() {
+        this.canvas.width = this.controller.width;
+        this.canvas.height = this.controller.height;
+        this.context.clearRect(0, 0, this.controller.width, this.controller.height);
+
         if (!this.toggled || this.raster_size == 0) return;
-        this.controller.context.fillStyle = this.color;
+
+        this.context.fillStyle = this.color;
         let angle = this.angle_degree / 180 * Math.PI;
         let x_center = this.controller.width / 2;
         let y_center = this.controller.height / 2;
@@ -653,9 +660,9 @@ class Screen {
                 }
             
                 if (this.show_grid) {
-                    this.controller.context.strokeStyle = "black";
-                    draw_rotated_square(this.controller.context, x, y, this.grid_size, angle);
-                    this.controller.context.stroke();
+                    this.context.strokeStyle = "black";
+                    draw_rotated_square(this.context, x, y, this.grid_size, angle);
+                    this.context.stroke();
                 }
                 
                 let intensity = this.controller.intensity_at(x, y, this.channel);
@@ -667,42 +674,76 @@ class Screen {
                 let radius = intensity * this.grid_size / 2 * this.raster_size;
 
                 if (this.dot_style == "circles") {
-                    this.controller.context.beginPath();
-                    this.controller.context.arc(x, y, radius, 0, 2 * Math.PI);
-                    this.controller.context.fill();
+                    this.context.beginPath();
+                    this.context.arc(x, y, radius, 0, 2 * Math.PI);
+                    this.context.fill();
                 } else if (this.dot_style == "euclidean") {
                     let texture_index = Math.round(intensity * (EUCLIDEAN_TEXTURE_PACK.length - 1));
                     let texture = EUCLIDEAN_TEXTURE_PACK[texture_index];
-                    texture.draw(this.controller.context, x, y, this.grid_size * this.raster_size, angle);
+                    texture.draw(this.context, x, y, this.grid_size * this.raster_size, angle);
                 } else if (this.dot_style == "pixelated_dots") {
                     let texture_index = Math.round(intensity * (DOTS_TEXTURE_PACK.length - 1));
                     let texture = DOTS_TEXTURE_PACK[texture_index];
-                    texture.draw(this.controller.context, x, y, this.grid_size * this.raster_size, angle);
+                    texture.draw(this.context, x, y, this.grid_size * this.raster_size, angle);
                 } else if (this.dot_style == "ellipsis") {
-                    this.controller.context.beginPath();
-                    this.controller.context.ellipse(x, y, radius, radius*0.5, -Math.PI / 4, 0, 2 * Math.PI);
-                    this.controller.context.fill();
+                    this.context.beginPath();
+                    this.context.ellipse(x, y, radius, radius*0.5, -Math.PI / 4, 0, 2 * Math.PI);
+                    this.context.fill();
                 } else if (this.dot_style == "hexagons") {
                     let n = 6;
                     let angle_offset = Math.PI / 6;
                     // let angle_offset = 3 * Math.PI / 2; // Math.PI / n;
                     // if (i % 2 == 0) angle_offset -= Math.PI;
-                    this.controller.context.beginPath();
-                    this.controller.context.moveTo(x + radius * Math.cos(angle_offset), y + radius* Math.sin(angle_offset));
+                    this.context.beginPath();
+                    this.context.moveTo(x + radius * Math.cos(angle_offset), y + radius* Math.sin(angle_offset));
                     for (let k = 0; k <= n; k++) {
-                        this.controller.context.lineTo(x + radius * Math.cos(2 * k * Math.PI / n + angle_offset), y + radius * Math.sin(2 * k * Math.PI / n + angle_offset));
+                        this.context.lineTo(x + radius * Math.cos(2 * k * Math.PI / n + angle_offset), y + radius * Math.sin(2 * k * Math.PI / n + angle_offset));
                     }
-                    this.controller.context.fill();
+                    this.context.fill();
                 }
     
             }
         }
+
+    }
+
+    get_data() {
+        return this.context.getImageData(0, 0, this.controller.width, this.controller.height).data;
     }
 
 }
 
 
 const LOCAL_STORAGE_KEY = "halftone_palette_config";
+
+
+function compose_normal(lower_layer, upper_layer, k, smooth) {
+    let a = upper_layer[k + 3] / 255;
+    if (!smooth) a = a > 0 ? 1 : 0;
+    let b = 1 - a;
+    lower_layer[k] = b * lower_layer[k] + a * upper_layer[k];
+    lower_layer[k + 1] = b * lower_layer[k + 1] + a * upper_layer[k + 1];
+    lower_layer[k + 2] = b * lower_layer[k + 2] + a * upper_layer[k + 2];
+}
+
+
+function compose_additive(lower_layer, upper_layer, k, smooth) {
+    let a = upper_layer[k + 3] / 255;
+    if (!smooth) a = a > 0 ? 1 : 0;
+    lower_layer[k] = Math.min(255, lower_layer[k] + a * upper_layer[k]);
+    lower_layer[k + 1] = Math.min(255, lower_layer[k + 1] + a * upper_layer[k + 1]);
+    lower_layer[k + 2] = Math.min(255, lower_layer[k + 2] + a * upper_layer[k + 2]);
+}
+
+
+function compose_subtractive(lower_layer, upper_layer, k, smooth) {
+    let a = upper_layer[k + 3] / 255;
+    if (!smooth) a = a > 0 ? 1 : 0;
+    for (let l = k; l < k+3; l++) {
+        let base_color = 255 * (1 - a) + upper_layer[l] * a;
+        lower_layer[l] = Math.max(0, lower_layer[l] - (255 - base_color));
+    }
+}
 
 
 class Controller {
@@ -719,6 +760,9 @@ class Controller {
         this.noise_level = 0;
         this.debug = false;
         this.smooth = true;
+        this.grey_noise = true;
+        this.background = "#ffffff";
+        this.composition_mode = "normal";
         this.screens = [];
     }
 
@@ -732,7 +776,8 @@ class Controller {
             noise_level: this.noise_level,
             debug: this.debug,
             smooth: this.smooth,
-            screens: screen_configs
+            screens: screen_configs,
+            grey_noise: this.grey_noise,
         }
     }
 
@@ -741,9 +786,10 @@ class Controller {
     }
 
     load_config(config) {
-        //console.log("Loading config", config);
+        console.log("Loading config", config);
         this.size = config.size;
         this.noise_level = config.noise_level;
+        this.grey_noise = config.grey_noise;
         this.debug = config.debug;
         this.smooth = config.smooth;
         for (let i = this.screens.length - 1; i >= 0; i--) {
@@ -759,6 +805,7 @@ class Controller {
 
     load_config_from_storage() {
         let config_string = localStorage.getItem(LOCAL_STORAGE_KEY);
+        console.log(config_string);
         if (config_string != null) {
             this.load_config(JSON.parse(config_string));
         }
@@ -777,6 +824,11 @@ class Controller {
             step: 0.01
         }, callback);
         create_parameter_input(self, container, {
+            attribute: "grey_noise",
+            label: "Grayscale noise",
+            type: "boolean",
+        }, callback);
+        create_parameter_input(self, container, {
             attribute: "debug",
             label: "Use debugging gradient",
             type: "boolean",
@@ -786,12 +838,24 @@ class Controller {
             label: "Smooth",
             type: "boolean",
         }, callback);
+        create_parameter_input(self, container, {
+            attribute: "background",
+            label: "Background color",
+            type: "color"
+        }, callback);
+        create_parameter_input(self, container, {
+            attribute: "composition_mode",
+            label: "Composition mode",
+            type: "select",
+            options: ["normal", "additive", "subtractive"],
+        }, callback)
     }
 
     intensity_at(x, y, channel) {
         if (this.debug) {
             return Math.max(0, Math.min(1, x / this.width));
         }
+        if (this.source == null) return 0;
 
         let image_scale = this.size / this.source.size;
         let i = Math.floor(y / image_scale);
@@ -803,33 +867,6 @@ class Controller {
         return color[channel];
     }
 
-    draw_screens() {
-        this.screens.forEach(screen => {
-            screen.draw();
-        });
-    }
-
-    apply_noise() {
-        let image_data = this.context.getImageData(0, 0, this.width, this.height);
-        for (let i = 0; i < this.height; i++) {
-            for (let j = 0; j < this.width; j++) {
-                let noise = Math.floor(Math.random() * 256);
-                let k = (i * this.width + j) * 4;
-                if (!image_data.data[k + 3]) {
-                    image_data.data[k] = (1 - this.noise_level) * 255 + this.noise_level * noise;
-                    image_data.data[k + 1] = (1 - this.noise_level) * 255 + this.noise_level * noise;
-                    image_data.data[k + 2] = (1 - this.noise_level) * 255 + this.noise_level * noise;
-                } else {
-                    image_data.data[k] = (1 - this.noise_level) * image_data.data[k] + this.noise_level * noise;
-                    image_data.data[k + 1] = (1 - this.noise_level) * image_data.data[k + 1] + this.noise_level * noise;
-                    image_data.data[k + 2] = (1 - this.noise_level) * image_data.data[k + 2] + this.noise_level * noise;
-                }
-                image_data.data[k + 3] = (this.noise_level > 0 || !this.smooth) ? 255 : image_data.data[k + 3];
-            }
-        }
-        this.context.putImageData(image_data, 0, 0);
-    }
-
     update() {
         this.save_config_to_storage();
         if (this.source != null) {
@@ -838,17 +875,56 @@ class Controller {
             this.canvas.width = this.width;
             this.canvas.height = this.height;
         }
-        this.context.clearRect(0, 0, this.width, this.height);
-        if (this.source != null) {
-            this.draw_screens();
-        } 
-        this.apply_noise();
+        this.screens.forEach(screen => {
+            screen.draw();
+        });
+        this.compose();
+    }
+
+    compose() {
+        this.context.fillStyle = this.background;
+        this.context.fillRect(0, 0, this.width, this.height);
+        let imagedata = this.context.getImageData(0, 0, this.width, this.height);
+        let composition_function = compose_normal;
+        if (this.composition_mode == "additive") {
+            composition_function = compose_additive;
+        } else if (this.composition_mode == "subtractive") {
+            composition_function = compose_subtractive;
+        }
+        this.screens.forEach(screen => {
+            let screen_data = screen.get_data();
+            for (let i = 0; i < this.height; i++) {
+                for (let j = 0; j < this.width; j++) {
+                    let k = (i * this.width + j) * 4;
+                    composition_function(imagedata.data, screen_data, k, this.smooth);
+                }
+            }
+        });
+        if (this.noise_level > 0) {
+            for (let i = 0; i < this.height; i++) {
+                for (let j = 0; j < this.width; j++) {
+                    let k = (i * this.width + j) * 4;
+                    let noise = null;
+                    if (this.grey_noise) {
+                        let noise_value = Math.floor(Math.random() * 256);
+                        noise = [noise_value, noise_value, noise_value];
+                    } else {
+                        noise = [Math.floor(Math.random() * 256), Math.floor(Math.random() * 256), Math.floor(Math.random() * 256)];
+                    }
+                    for (let l = k; l < k + 3; l++) {
+                        imagedata.data[l] = (1 - this.noise_level) * imagedata.data[l] + this.noise_level * noise[l - k];
+                    }
+                }
+            }
+        }
+        this.context.putImageData(imagedata, 0, 0);
     }
 
     add_screen() {
         let screen = new Screen(this.screens.length, this);
         screen.setup();
         this.screens.push(screen);
+        this.update();
     }
 
     delete_screen(index) {
@@ -922,6 +998,7 @@ class SourceImage {
             cyan: 0,
             magenta: 0,
             yellow: 0,
+            black: 0,
             alpha: 0,
         }
         if (i < 0 || i >= this.height || j < 0 || j >= this.width) {
@@ -934,9 +1011,9 @@ class SourceImage {
         color.alpha = this.data[k + 3] / 255;
         color.brightness = (color.red + color.green + color.blue) / 3;
         color.darkness = 1 - color.brightness;
-        color.cyan = (color.green + color.blue) / 2;
-        color.magenta = (color.red + color.blue) / 2;
-        color.yellow = (color.red + color.green) / 2;
+        color.cyan = 1 - color.red;
+        color.magenta = 1 - color.green;
+        color.yellow = 1 - color.blue;
         return color;
     }
 
@@ -946,7 +1023,7 @@ class SourceImage {
 window.addEventListener("load", () => {
     let controller = new Controller("canvas", 512, 512);
     controller.add_screen();
-    controller.load_config_from_storage()
+    controller.load_config_from_storage();
     controller.setup();
     let source = new SourceImage(512, () => {
         controller.update();
