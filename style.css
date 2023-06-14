@@ -22,6 +22,7 @@ html, body {
 body {
     display: flex;
     flex-direction: row;
+    justify-content: center;
     background-color: #181818;
     color: white;
     font-family: 'Courier New', Courier, monospace;
@@ -30,7 +31,6 @@ body {
 #config {
     display: flex;
     flex-wrap: wrap;
-    width: 100%;
     flex-direction: row;
     padding: 1em;
 }
@@ -112,4 +112,17 @@ button:hover {
 button:disabled {
     opacity: .8;
     cursor: default;
+}
+
+#source-image {
+    display: flex;
+    flex-direction: column;
+}
+
+#source-image > * {
+    margin-bottom: .4rem;
+}
+
+#original {
+    max-width: 256px;
 }

@@ -555,14 +555,16 @@ class Screen {
         let dots_texture_pack = create_pixelated_dots_texture_pack(10);
         let euclidean_texture_pack = create_pixelated_euclidean_dots_texture_pack(10);
 
-        let row_start = -Math.floor(grid_height / 4);
-        let row_end = 1.25 * grid_height;
+        let row_start = -grid_height;
+        let row_end = 2 * grid_height;
+        let col_start = -grid_width;
+        let col_end = 2 * grid_width;
         if (this.oneline) {
             row_start = Math.floor(grid_height / 2);
             row_end = row_start + 1;
         }
         for (let i = row_start; i < row_end; i++) {
-            for (let j = -Math.floor(grid_width / 4); j < 1.25 * grid_width; j++) {
+            for (let j = col_start; j < col_end; j++) {
                 let y_base = i * this.grid_size + .5 * this.grid_size;
                 if (this.collapsed) {
                     y_base = i * this.grid_size * this.raster_size + .5 * this.grid_size * this.raster_size;
@@ -573,6 +575,10 @@ class Screen {
                 }
                 let x = Math.cos(angle) * (x_base - x_center) + Math.sin(angle) * (y_base - y_center) + x_center;
                 let y = -Math.sin(angle) * (x_base - x_center) + Math.cos(angle) * (y_base - y_center) + y_center;
+
+                if (x < 0 || x >= this.controller.width || y < 0 || y >= this.controller.height) {
+                    continue;
+                }
             
                 if (this.show_grid) {
                     this.controller.context.strokeStyle = "black";
@@ -816,7 +822,7 @@ window.addEventListener("load", () => {
         controller.update();
     });
     controller.source = source;
-    source.load_url("david.png");
+    source.load_url("mountain.jpg");
     document.getElementById("button-add-screen").addEventListener("click", () => { controller.add_screen(); });
     document.getElementById("button-export").addEventListener("click", () => { controller.export(); });
     document.getElementById("input-image").addEventListener("change", () => {
