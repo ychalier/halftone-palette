@@ -920,11 +920,11 @@ class Controller {
         this.context.putImageData(imagedata, 0, 0);
     }
 
-    add_screen() {
+    add_screen(should_update=true) {
         let screen = new Screen(this.screens.length, this);
         screen.setup();
         this.screens.push(screen);
-        this.update();
+        if (should_update) this.update();
     }
 
     delete_screen(index) {
@@ -1022,7 +1022,7 @@ class SourceImage {
 
 window.addEventListener("load", () => {
     let controller = new Controller("canvas", 512, 512);
-    controller.add_screen();
+    controller.add_screen(should_update=false);
     controller.load_config_from_storage();
     controller.setup();
     let source = new SourceImage(512, () => {
