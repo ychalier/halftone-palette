@@ -718,6 +718,7 @@ class Controller {
         this.source = null;
         this.noise_level = 0;
         this.debug = false;
+        this.smooth = true;
         this.screens = [];
     }
 
@@ -730,6 +731,7 @@ class Controller {
             size: this.size,
             noise_level: this.noise_level,
             debug: this.debug,
+            smooth: this.smooth,
             screens: screen_configs
         }
     }
@@ -743,6 +745,7 @@ class Controller {
         this.size = config.size;
         this.noise_level = config.noise_level;
         this.debug = config.debug;
+        this.smooth = config.smooth;
         for (let i = this.screens.length - 1; i >= 0; i--) {
             this.delete_screen_at(i);
         }
@@ -776,6 +779,11 @@ class Controller {
         create_parameter_input(self, container, {
             attribute: "debug",
             label: "Use debugging gradient",
+            type: "boolean",
+        }, callback);
+        create_parameter_input(self, container, {
+            attribute: "smooth",
+            label: "Smooth",
             type: "boolean",
         }, callback);
     }
@@ -816,7 +824,7 @@ class Controller {
                     image_data.data[k + 1] = (1 - this.noise_level) * image_data.data[k + 1] + this.noise_level * noise;
                     image_data.data[k + 2] = (1 - this.noise_level) * image_data.data[k + 2] + this.noise_level * noise;
                 }
-                image_data.data[k + 3] = 255;
+                image_data.data[k + 3] = (this.noise_level > 0 || !this.smooth) ? 255 : image_data.data[k + 3];
             }
         }
         this.context.putImageData(image_data, 0, 0);
