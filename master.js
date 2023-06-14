@@ -51,6 +51,11 @@ class LagrangeInterpolation {
             this.ys.push(xy[1]);
         });
         this.ws = [];
+        this.update_weights();
+    }
+
+    update_weights() {
+        this.ws = [];
         let k = this.xs.length;
         let w;
         for (let j = 0; j < k; ++j) {
@@ -78,6 +83,19 @@ class LagrangeInterpolation {
             }
         }
         return b / c;
+    }
+
+    export_config() {
+        return {
+            xs: this.xs,
+            ys: this.ys,
+        }
+    }
+
+    load_config(config) {
+        this.xs = config.xs;
+        this.ys = config.ys;
+        this.update_weights();
     }
 
 }
@@ -237,11 +255,11 @@ function create_parameter_input(ref, container, options, callback) {
     let value_span = null;
     if (options.type == "range") {
         input = document.createElement("input");
-        input.value = ref[options.attribute];
         input.type = "range";
         input.min = options.min;
         input.max = options.max;
         input.step = get_property(options, "step", 1);
+        input.value = ref[options.attribute];
         value_span = document.createElement("span");
     } else if (options.type == "color") {
         input = document.createElement("input");
@@ -302,6 +320,12 @@ function create_curve_input(ref, container, attribute, callback) {
         callback();
     });
     curve_input.setup(container);
+    curve_input.dots = [];
+    for (let i = 0; i < ref[attribute].xs.length; i++) {
+        let x = ref[attribute].xs[i];
+        let y = ref[attribute].ys[i];
+        curve_input.dots.push([x, y]);
+    }
     curve_input.update(false);
 }
 
@@ -422,6 +446,10 @@ function create_pixelated_euclidean_dots_texture_pack(dot_size) {
 }
 
 
+const DOTS_TEXTURE_PACK = create_pixelated_dots_texture_pack(10);
+const EUCLIDEAN_TEXTURE_PACK = create_pixelated_euclidean_dots_texture_pack(10);
+
+
 class Screen {
     constructor(index, controller) {
         this.index = index;
@@ -442,6 +470,42 @@ class Screen {
         this.tone_curve = new LagrangeInterpolation([[0, 0], [1, 1]]);
     }
 
+    export_config() {
+        return {
+            index: this.index,
+            angle_degree: this.angle_degree,
+            grid_size: this.grid_size,
+            raster_size: this.raster_size,
+            show_grid: this.show_grid,
+            interlaced: this.interlaced,
+            oneline: this.oneline,
+            dot_style: this.dot_style,
+            collapsed: this.collapsed,
+            color: this.color,
+            channel: this.channel,
+            toggled: this.toggled,
+            negative: this.negative,
+            tone_curve: this.tone_curve.export_config(),
+        };
+    }
+
+    load_config(config) {
+        this.index = config.index;
+        this.angle_degree = config.angle_degree;
+        this.grid_size = config.grid_size;
+        this.raster_size = config.raster_size;
+        this.show_grid = config.show_grid;
+        this.interlaced = config.interlaced;
+        this.online = config.online;
+        this.dot_style = config.dot_style;
+        this.collapsed = config.collapsed;
+        this.color = config.color;
+        this.channel = config.channel;
+        this.toggled = config.toggled;
+        this.negative = config.negative;
+        this.tone_curve.load_config(config.tone_curve);
+    }
+
     create_element() {
         this.element = document.createElement("div");
         this.element.classList.add("screen");
@@ -452,7 +516,6 @@ class Screen {
         let delete_button = document.createElement("button");
         delete_button.textContent = "Delete";
         delete_button.addEventListener("click", () => {
-            self.element.parentElement.removeChild(self.element);
             self.controller.delete_screen(this.index);
         });
         this.element.appendChild(delete_button);
@@ -552,8 +615,6 @@ class Screen {
         let y_center = this.controller.height / 2;
         let grid_width = this.controller.width / this.grid_size;
         let grid_height = this.controller.height / this.grid_size / (this.collapsed ? this.raster_size : 1);
-        let dots_texture_pack = create_pixelated_dots_texture_pack(10);
-        let euclidean_texture_pack = create_pixelated_euclidean_dots_texture_pack(10);
 
         let row_start = -grid_height;
         let row_end = 2 * grid_height;
@@ -599,12 +660,12 @@ class Screen {
                     this.controller.context.arc(x, y, radius, 0, 2 * Math.PI);
                     this.controller.context.fill();
                 } else if (this.dot_style == "euclidean") {
-                    let texture_index = Math.round(intensity * (euclidean_texture_pack.length - 1));
-                    let texture = euclidean_texture_pack[texture_index];
+                    let texture_index = Math.round(intensity * (EUCLIDEAN_TEXTURE_PACK.length - 1));
+                    let texture = EUCLIDEAN_TEXTURE_PACK[texture_index];
                     texture.draw(this.controller.context, x, y, this.grid_size * this.raster_size, angle);
                 } else if (this.dot_style == "pixelated_dots") {
-                    let texture_index = Math.round(intensity * (dots_texture_pack.length - 1));
-                    let texture = dots_texture_pack[texture_index];
+                    let texture_index = Math.round(intensity * (DOTS_TEXTURE_PACK.length - 1));
+                    let texture = DOTS_TEXTURE_PACK[texture_index];
                     texture.draw(this.controller.context, x, y, this.grid_size * this.raster_size, angle);
                 } else if (this.dot_style == "ellipsis") {
                     this.controller.context.beginPath();
@@ -630,6 +691,9 @@ class Screen {
 }
 
 
+const LOCAL_STORAGE_KEY = "halftone_palette_config";
+
+
 class Controller {
 
     constructor(canvas_id, size) {
@@ -644,6 +708,46 @@ class Controller {
         this.noise_level = 0;
         this.debug = false;
         this.screens = [];
+    }
+
+    export_config() {
+        let screen_configs = [];
+        this.screens.forEach(screen => {
+            screen_configs.push(screen.export_config());
+        })
+        return {
+            size: this.size,
+            noise_level: this.noise_level,
+            debug: this.debug,
+            screens: screen_configs
+        }
+    }
+
+    save_config_to_storage() {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(this.export_config()));
+    }
+
+    load_config(config) {
+        //console.log("Loading config", config);
+        this.size = config.size;
+        this.noise_level = config.noise_level;
+        this.debug = config.debug;
+        for (let i = this.screens.length - 1; i >= 0; i--) {
+            this.delete_screen_at(i);
+        }
+        config.screens.forEach(screen_config => {
+            let screen = new Screen(this.screens.length, this);
+            screen.load_config(screen_config);
+            screen.setup();
+            this.screens.push(screen);
+        });
+    }
+
+    load_config_from_storage() {
+        let config_string = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (config_string != null) {
+            this.load_config(JSON.parse(config_string));
+        }
     }
 
     setup() {
@@ -708,6 +812,7 @@ class Controller {
     }
 
     update() {
+        this.save_config_to_storage();
         if (this.source != null) {
             this.width = this.source.width;
             this.height = this.source.height;
@@ -735,8 +840,13 @@ class Controller {
                 break;
             }
         }
-        if (delete_index == null) return;
-        this.screens.splice(delete_index, 1);
+        this.delete_screen_at(delete_index);
+    }
+
+    delete_screen_at(i) {
+        if (i == null) return;
+        this.screens[i].element.parentElement.removeChild(this.screens[i].element);
+        this.screens.splice(i, 1);
         this.update();
     }
 
@@ -816,8 +926,9 @@ class SourceImage {
 
 window.addEventListener("load", () => {
     let controller = new Controller("canvas", 512, 512);
-    controller.setup();
     controller.add_screen();
+    controller.load_config_from_storage()
+    controller.setup();
     let source = new SourceImage(512, () => {
         controller.update();
     });
@@ -834,5 +945,5 @@ window.addEventListener("load", () => {
             alert("Please specify one source!");
             return;
         }
-    });    
+    });
 });
