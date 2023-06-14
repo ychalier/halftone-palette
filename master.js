@@ -626,21 +626,21 @@ class Screen {
 
 class Controller {
 
-    constructor(canvas_id, width, height) {
+    constructor(canvas_id, size) {
         this.canvas = document.getElementById(canvas_id);
-        this.width = width;
-        this.height = height;
+        this.size = size;
+        this.width = this.size;
+        this.height = this.size;
         this.canvas.width = this.width;
         this.canvas.height = this.height;
         this.context = this.canvas.getContext("2d");
-        
+        this.source = null;
         this.noise_level = 0;
         this.debug = false;
         this.screens = [];
     }
 
     setup() {
-        this.load_original_image();
         let container = document.getElementById("commands");
         var self = this;
         let callback = () => { self.update(); };
@@ -659,62 +659,19 @@ class Controller {
         }, callback);
     }
 
-    load_original_image() {
-        let canvas = document.createElement("canvas");
-        let context = canvas.getContext("2d");
-        let img = document.getElementById("original");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        context.drawImage(img, 0, 0 );
-        this.image_width = img.width;
-        this.image_height = img.height;
-        this.image_data = context.getImageData(0, 0, img.width, img.height);
-    }
-
     intensity_at(x, y, channel) {
         if (this.debug) {
             return Math.max(0, Math.min(1, x / this.width));
         }
-        let image_aspect_ratio = this.image_width / this.image_height;
-        let canvas_aspect_ratio = this.width / this.height;
-        let image_scale = 1;
-        let offset_x = 0;
-        let offset_y = 0;
-        if (image_aspect_ratio <= canvas_aspect_ratio) {
-            image_scale = this.height / this.image_height;
-            offset_x = (this.width - (this.image_width * image_scale)) / 2;
-        } else {
-            image_scale = this.width / this.image_width;
-            offset_y = (this.height - (this.image_height * image_scale)) / 2;
-        }
-        let i = Math.floor((y - offset_y) / image_scale);
-        let j = Math.floor((x - offset_x) / image_scale);
 
-        if (i < 0 || i >= this.image_height || j < 0 || j >= this.image_width) {
-            return 0;
-        }
-        let k = (i * this.image_width + j) * 4;
-        if (k < 0 || k >= this.image_data.data.length) {
-            return 0;
-        }
-        let r = this.image_data.data[k] / 255;
-        let g = this.image_data.data[k + 1] / 255;
-        let b = this.image_data.data[k + 2] / 255;
-        if (channel == "darkness") {
-            return 1 - (r + g + b) / 3;
-        } else if (channel == "red") {
-            return r;
-        } else if (channel == "green") {
-            return g ;
-        } else if (channel == "blue") {
-            return b;
-        } else if (channel == "yellow") {
-            return (r + g) / 2;
-        } else if (channel == "magenta") {
-            return (r + b) / 2;
-        } else if (channel == "cyan") {
-            return (g + b) / 2;
-        }
+        let image_scale = this.size / this.source.size;
+        let i = Math.floor(y / image_scale);
+        let j = Math.floor(x / image_scale);
+
+        let color = this.source.color_at(i, j);
+
+        if (color.alpha == 0) return 0;
+        return color[channel];
     }
 
     draw_screens() {
@@ -745,8 +702,16 @@ class Controller {
     }
 
     update() {
+        if (this.source != null) {
+            this.width = this.source.width;
+            this.height = this.source.height;
+            this.canvas.width = this.width;
+            this.canvas.height = this.height;
+        }
         this.context.clearRect(0, 0, this.width, this.height);
-        this.draw_screens();
+        if (this.source != null) {
+            this.draw_screens();
+        } 
         this.apply_noise();
     }
 
@@ -769,17 +734,99 @@ class Controller {
         this.update();
     }
 
+    export() {
+        window.open(this.canvas.toDataURL("image/png"), "_blank").focus();
+    }
+
 }
+
+
+class SourceImage {
+
+    constructor(size, callback) {
+        this.canvas = document.getElementById("original");
+        this.image = new Image();
+        this.image.crossOrigin = "anonymous";
+        this.size = size;
+        this.width = size;
+        this.height = size;
+        var self = this;
+        this.image.addEventListener("load", () => { self.on_image_load(); });
+        this.data = null;
+        this.callback = callback;
+    }
+
+    on_image_load() {
+        let aspect_ratio = this.image.width / this.image.height;
+        if (aspect_ratio >= 1) {
+            this.width = this.size;
+            this.height = Math.floor(this.size / aspect_ratio);
+        } else {
+            this.width = Math.floor(this.size * aspect_ratio);
+            this.height = this.size;
+        }
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        let context = this.canvas.getContext("2d");
+        context.drawImage(this.image, 0, 0, this.width, this.height);
+        this.data = context.getImageData(0, 0, this.width, this.height).data;
+        this.callback();
+    }
+
+    load_url(url) {
+        this.image.src = url;
+    }
+
+    color_at(i, j) {
+        let color = {
+            red: 0,
+            green: 0,
+            blue: 0,
+            brightness: 0,
+            darkness: 0,
+            cyan: 0,
+            magenta: 0,
+            yellow: 0,
+            alpha: 0,
+        }
+        if (i < 0 || i >= this.height || j < 0 || j >= this.width) {
+            return color;
+        }
+        let k = ((i * this.width) + j) * 4;
+        color.red = this.data[k] / 255;
+        color.green = this.data[k + 1] / 255;
+        color.blue = this.data[k + 2] / 255;
+        color.alpha = this.data[k + 3] / 255;
+        color.brightness = (color.red + color.green + color.blue) / 3;
+        color.darkness = 1 - color.brightness;
+        color.cyan = (color.green + color.blue) / 2;
+        color.magenta = (color.red + color.blue) / 2;
+        color.yellow = (color.red + color.green) / 2;
+        return color;
+    }
+
+}
+
 
 window.addEventListener("load", () => {
     let controller = new Controller("canvas", 512, 512);
     controller.setup();
     controller.add_screen();
-    controller.update();
-    document.getElementById("button-add-screen").addEventListener("click", () => {
-        controller.add_screen();
+    let source = new SourceImage(512, () => {
+        controller.update();
     });
-    document.getElementById("button-export").addEventListener("click", () => {
-        window.open(controller.canvas.toDataURL("image/png"), "_blank").focus();
-    });
+    controller.source = source;
+    source.load_url("david.png");
+    document.getElementById("button-add-screen").addEventListener("click", () => { controller.add_screen(); });
+    document.getElementById("button-export").addEventListener("click", () => { controller.export(); });
+    document.getElementById("input-image").addEventListener("change", () => {
+        let image_files = document.getElementById("input-image").files;
+        if (image_files.length > 0) {
+            console.log("Loading image from a file:", image_files[0]);
+            source.load_url(URL.createObjectURL(image_files[0]));
+        } else {
+            alert("Please specify one source!");
+            return;
+        }
+    });    
 });
