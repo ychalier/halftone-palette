@@ -448,6 +448,7 @@ function create_pixelated_euclidean_dots_texture_pack(dot_size) {
 
 const DOTS_TEXTURE_PACK = create_pixelated_dots_texture_pack(10);
 const EUCLIDEAN_TEXTURE_PACK = create_pixelated_euclidean_dots_texture_pack(10);
+var COPIED_STRING = null;
 
 
 class Screen {
@@ -522,12 +523,22 @@ class Screen {
 
         let copy_button = document.createElement("button");
         copy_button.textContent = "Copy";
-        copy_button.disabled = true;
+        copy_button.addEventListener("click", () => {
+            COPIED_STRING = JSON.stringify(self.export_config());
+            navigator.clipboard.writeText(COPIED_STRING);
+        });
         this.element.appendChild(copy_button);
 
         let paste_button = document.createElement("button");
         paste_button.textContent = "Paste";
-        paste_button.disabled = true;
+        paste_button.addEventListener("click", () => {
+            if (COPIED_STRING != null) {
+                let config = JSON.parse(COPIED_STRING);
+                self.load_config(config);
+                self.element.parentElement.removeChild(self.element);
+                self.setup();
+            }
+        });
         this.element.appendChild(paste_button);
     }
 
