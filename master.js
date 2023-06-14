@@ -778,6 +778,7 @@ class Controller {
             smooth: this.smooth,
             screens: screen_configs,
             grey_noise: this.grey_noise,
+            composition_mode: this.composition_mode,
         }
     }
 
@@ -792,6 +793,7 @@ class Controller {
         this.grey_noise = config.grey_noise;
         this.debug = config.debug;
         this.smooth = config.smooth;
+        this.composition_mode = config.composition_mode;
         for (let i = this.screens.length - 1; i >= 0; i--) {
             this.delete_screen_at(i);
         }
