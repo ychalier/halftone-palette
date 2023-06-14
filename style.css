@@ -112,15 +112,15 @@ button:disabled {
     cursor: default;
 }
 
-#source-image {
+#source-wrapper {
     display: flex;
     flex-direction: column;
 }
 
-#source-image > * {
+#source-wrapper > * {
     margin-bottom: .4rem;
 }
 
-#original {
-    max-width: 256px;
+#source-image {
+    width: 256px;
 }
