@@ -364,7 +364,7 @@ class Texture {
 }
 
 
-function create_pixelated_dots_texture_pack(dot_size) {
+function create_dot_texture_pack(dot_size) {
     // Requires a symmetric 2D function
     let grid = [];
     for (let k = 0; k < dot_size; k++) {
@@ -391,7 +391,7 @@ function create_pixelated_dots_texture_pack(dot_size) {
 }
 
 
-function create_pixelated_euclidean_dots_texture_pack(dot_size) {
+function create_euclidean_texture_pack(dot_size) {
     // Euclidean
     let texture_pack = [];
     for (let bound = 0; bound <= dot_size * dot_size; bound++) {
@@ -445,9 +445,55 @@ function create_pixelated_euclidean_dots_texture_pack(dot_size) {
     return texture_pack;
 }
 
+function compute_index_matrix(n) {
+    /* Note: n must be a power of two
+       Returns a square matrix of size n
+    */
+    if (n == 2) return [[1, 2], [3, 0]];
+    let m = Math.floor(n / 2);
+    let inner_matrix = compute_index_matrix(m);
+    let matrix = [];
+    for (let i = 0; i < n; i++) {
+        matrix.push([]);
+        for (let j = 0; j < n; j++) {
+            matrix[i].push(0);
+        }
+    }
+    for (let i = 0; i < m; i++) {
+        for (let j = 0; j < m; j++) {
+            matrix[i][j] = 4 * inner_matrix[i][j] + 1;
+            matrix[i + m][j] = 4 * inner_matrix[i][j] + 3;
+            matrix[i][j + m] = 4 * inner_matrix[i][j] + 2;
+            matrix[i + m][j + m] = 4 * inner_matrix[i][j];
+        }
+    }
+    return matrix;
+}
 
-const DOTS_TEXTURE_PACK = create_pixelated_dots_texture_pack(10);
-const EUCLIDEAN_TEXTURE_PACK = create_pixelated_euclidean_dots_texture_pack(10);
+
+function create_bayer_texture_pack(dot_size) {
+    let texture_pack = [];
+    let n = Math.pow(2, Math.floor(Math.log2(dot_size)));
+    let index_matrix = compute_index_matrix(n);
+    for (let bound = 0; bound <= dot_size * dot_size; bound++) {
+        let texture = new Texture(dot_size, 1);
+        for (let i = 0; i < dot_size; i++) {
+            for (let j = 0; j < dot_size; j++) {
+                if (index_matrix[i][j] <= bound) {
+                    texture.grid[i][j] = 1;
+                }
+            }
+        }
+        texture_pack.push(texture);
+    }
+    return texture_pack;
+}
+
+
+const DOT_TEXTURE_PACK = create_dot_texture_pack(10);
+const EUCLIDEAN_TEXTURE_PACK = create_euclidean_texture_pack(10);
+const BAYER4_TEXTURE_PACK = create_bayer_texture_pack(4);
+const BAYER8_TEXTURE_PACK = create_bayer_texture_pack(8);
 var COPIED_STRING = null;
 
 
@@ -645,7 +691,7 @@ class Screen {
             attribute: "dot_style",
             label: "Dot style",
             type: "select",
-            options: ["dot", "euclidean", "circle", "ellipse", "triangle", "square", "hexagon"]
+            options: ["dot", "euclidean", "bayer4", "bayer8", "circle", "ellipse", "triangle", "square", "hexagon"]
         }, callback);
         create_parameter_input(self, this.element, {
             attribute: "channel",
@@ -685,16 +731,26 @@ class Screen {
         this.context.fill();
     }
 
-    draw_dot(x, y, intensity, angle) {
-        let texture_index = Math.round(intensity * (DOTS_TEXTURE_PACK.length - 1));
-        let texture = DOTS_TEXTURE_PACK[texture_index];
+    draw_texture_pack(x, y, intensity, angle, pack) {
+        let texture_index = Math.round(intensity * (pack.length - 1));
+        let texture = pack[texture_index];
         texture.draw(this.context, x, y, this.grid_size * this.raster_size, angle);
     }
 
+    draw_dot(x, y, intensity, angle) {
+        this.draw_texture_pack(x, y, intensity, angle, DOT_TEXTURE_PACK);
+    }
+
     draw_euclidean(x, y, intensity, angle) {
-        let texture_index = Math.round(intensity * (EUCLIDEAN_TEXTURE_PACK.length - 1));
-        let texture = EUCLIDEAN_TEXTURE_PACK[texture_index];
-        texture.draw(this.context, x, y, this.grid_size * this.raster_size, angle);
+        this.draw_texture_pack(x, y, intensity, angle, EUCLIDEAN_TEXTURE_PACK);
+    }
+
+    draw_bayer4(x, y, intensity, angle) {
+        this.draw_texture_pack(x, y, intensity, angle, BAYER4_TEXTURE_PACK);
+    }
+
+    draw_bayer8(x, y, intensity, angle) {
+        this.draw_texture_pack(x, y, intensity, angle, BAYER8_TEXTURE_PACK);
     }
 
     draw_square(x, y, intensity, angle) {
@@ -723,6 +779,8 @@ class Screen {
         let drawf = (x, y, i) => { this.draw_circle(x, y, i); };
         if (this.dot_style == "dot") drawf = (x, y, i) => { this.draw_dot(x, y, i, angle); };
         if (this.dot_style == "euclidean") drawf = (x, y, i) => { this.draw_euclidean(x, y, i, angle); };
+        if (this.dot_style == "bayer4") drawf = (x, y, i) => { this.draw_bayer4(x, y, i, angle); };
+        if (this.dot_style == "bayer8") drawf = (x, y, i) => { this.draw_bayer8(x, y, i, angle); };
         if (this.dot_style == "circle") drawf = (x, y, i) => { this.draw_circle(x, y, i); };
         if (this.dot_style == "ellipse") drawf = (x, y, i) => { this.draw_ellipse(x, y, i); };
         if (this.dot_style == "triangle") drawf = (x, y, i) => { this.draw_regular_shape(x, y, i, 3, Math.PI); };
