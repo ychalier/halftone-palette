@@ -955,6 +955,29 @@ class Source {
 
 }
 
+function apply_noise(imagedata, noise_level, noise_scale, grey_noise) {
+    if (noise_level == 0) return;
+    for (let i = 0; i < imagedata.height; i = i + noise_scale) {
+        for (let j = 0; j < imagedata.width; j = j + noise_scale) {
+            let noise = null;
+            if (grey_noise) {
+                let noise_value = Math.floor(Math.random() * 256);
+                noise = [noise_value, noise_value, noise_value];
+            } else {
+                noise = [Math.floor(Math.random() * 256), Math.floor(Math.random() * 256), Math.floor(Math.random() * 256)];
+            }
+            for (let ii = i; ii < i + noise_scale; ii++) {
+                for (let jj = j; jj < j + noise_scale; jj++) {
+                    let k = (ii * imagedata.width + jj) * 4;
+                    for (let l = k; l < k + 3; l++) {
+                        imagedata.data[l] = (1 - noise_level) * imagedata.data[l] + noise_level * noise[l - k];
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 class Output {
 
@@ -968,6 +991,7 @@ class Output {
         this.canvas.height = this.height;
         this.context = this.canvas.getContext("2d");
         this.noise_level = 0;
+        this.noise_scale = 1;
         this.smooth = true;
         this.grey_noise = true;
         this.background = "#ffffff";
@@ -1003,6 +1027,13 @@ class Output {
             min: 0,
             max: 1,
             step: 0.01
+        }, callback);
+        create_parameter_input(self, container, {
+            attribute: "noise_scale",
+            label: "Noise scale",
+            type: "range",
+            min: 1,
+            max: 16,
         }, callback);
         create_parameter_input(self, container, {
             attribute: "grey_noise",
@@ -1050,23 +1081,7 @@ class Output {
                 }
             }
         });
-        if (this.noise_level > 0) {
-            for (let i = 0; i < this.height; i++) {
-                for (let j = 0; j < this.width; j++) {
-                    let k = (i * this.width + j) * 4;
-                    let noise = null;
-                    if (this.grey_noise) {
-                        let noise_value = Math.floor(Math.random() * 256);
-                        noise = [noise_value, noise_value, noise_value];
-                    } else {
-                        noise = [Math.floor(Math.random() * 256), Math.floor(Math.random() * 256), Math.floor(Math.random() * 256)];
-                    }
-                    for (let l = k; l < k + 3; l++) {
-                        imagedata.data[l] = (1 - this.noise_level) * imagedata.data[l] + this.noise_level * noise[l - k];
-                    }
-                }
-            }
-        }
+        apply_noise(imagedata, this.noise_level, this.noise_scale, this.grey_noise);
         this.context.putImageData(imagedata, 0, 0);
     }
 
