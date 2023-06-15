@@ -467,6 +467,9 @@ class Screen {
         this.channel = "darkness";
         this.toggled = true;
         this.negative = false;
+        this.offset_x = 0;
+        this.offset_y = 0;
+        this.animated = false;
         this.tone_curve = new LagrangeInterpolation([[0, 0], [1, 1]]);
         this.canvas = document.createElement("canvas");
         this.context = this.canvas.getContext("2d");
@@ -486,6 +489,8 @@ class Screen {
             channel: this.channel,
             toggled: this.toggled,
             negative: this.negative,
+            offset_x: this.offset_x,
+            offset_y: this.offset_y,
             tone_curve: this.tone_curve.export_config(),
         };
     }
@@ -503,6 +508,9 @@ class Screen {
         this.channel = config.channel;
         this.toggled = config.toggled;
         this.negative = config.negative;
+        this.offset_x = config.offset_x;
+        this.offset_y = config.offset_y;
+        this.animation_offset = 0;
         this.tone_curve.load_config(config.tone_curve);
     }
 
@@ -539,6 +547,31 @@ class Screen {
             }
         });
         this.element.appendChild(paste_button);
+
+        let animate_button = document.createElement("button");
+        animate_button.textContent = "Animate";
+        animate_button.addEventListener("click", () => {
+            if (self.animated) {
+                self.animation_offset = 0;
+                self.animated = false;
+                animate_button.textContent = "Animate";
+            } else {
+                self.animated = true;
+                animate_button.textContent = "Stop";
+                function animate() {
+                    if (self.animation_offset >= 1) self.animation_offset -= 1;
+                    self.animation_offset += 0.01;
+                    self.controller.update();
+                    if (self.animated) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        self.animation_offset = 0;
+                    }
+                }
+                animate();
+            }
+        });
+        this.element.appendChild(animate_button);
     }
 
     setup() {
@@ -563,6 +596,22 @@ class Screen {
             type: "range",
             min: 4,
             max: 64,
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "offset_x",
+            label: "Offset X",
+            type: "range",
+            min: 0,
+            max: 1,
+            step: 0.01,
+        }, callback);
+        create_parameter_input(self, this.element, {
+            attribute: "offset_y",
+            label: "Offset Y",
+            type: "range",
+            min: 0,
+            max: 1,
+            step: 0.01,
         }, callback);
         create_parameter_input(self, this.element, {
             attribute: "interlaced",
@@ -702,11 +751,11 @@ class Screen {
         let angle = this.angle_degree / 180 * Math.PI;
         let x_center = this.controller.output.width / 2;
         let y_center = this.controller.output.height / 2;
-        let y_base = i * this.grid_size + .5 * this.grid_size;
+        let y_base = i * this.grid_size + .5 * this.grid_size + this.offset_y * this.grid_size;
         if (this.collapsed) {
             y_base = i * this.grid_size * this.raster_size + .5 * this.grid_size * this.raster_size;
         }
-        let x_base = j * this.grid_size + .5 * this.grid_size;
+        let x_base = j * this.grid_size + .5 * this.grid_size + (this.offset_x + this.animation_offset) * this.grid_size;
         if (this.interlaced) {
             x_base += i % 2 * .5 * this.grid_size;
         }
