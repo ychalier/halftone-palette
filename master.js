@@ -655,16 +655,16 @@ class Screen {
     }
 
     update() {
-        this.canvas.width = this.controller.output.width;
-        this.canvas.height = this.controller.output.height;
+        this.canvas.width = this.controller.source.width;
+        this.canvas.height = this.controller.source.height;
         this.context.clearRect(0, 0, this.controller.width, this.controller.height);
 
         if (!this.toggled || this.raster_size == 0) return;
 
         this.context.fillStyle = this.color;
         let angle = this.angle_degree / 180 * Math.PI;
-        let grid_width = this.controller.output.width / this.grid_size;
-        let grid_height = this.controller.output.height / this.grid_size / (this.collapsed ? this.raster_size : 1);
+        let grid_width = this.controller.source.width / this.grid_size;
+        let grid_height = this.controller.source.height / this.grid_size / (this.collapsed ? this.raster_size : 1);
 
         let row_start = -grid_height;
         let row_end = 2 * grid_height;
@@ -685,7 +685,7 @@ class Screen {
                 let coords = this.coords(i, j);
                 let x = coords[0];
                 let y = coords[1];
-                if (x < 0 || x >= this.controller.output.width || y < 0 || y >= this.controller.output.height) {
+                if (x < 0 || x >= this.controller.source.width || y < 0 || y >= this.controller.source.height) {
                     continue;
                 }
                 if (this.show_grid) {
@@ -817,6 +817,7 @@ class Controller {
     }
 
     update() {
+        console.log("Updating controller");
         this.save_config_to_storage();
         this.screens.forEach(screen => {
             screen.update();
