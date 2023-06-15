@@ -819,6 +819,7 @@ class Controller {
     update() {
         console.log("Updating controller");
         this.save_config_to_storage();
+        this.source.update();
         this.screens.forEach(screen => {
             screen.update();
         });
@@ -863,6 +864,9 @@ class Source {
         this.size = size;
         this.width = size;
         this.height = size;
+        this.noise_level = 0;
+        this.noise_scale = 1;
+        this.grey_noise = false;
         this.debug = false;
         var self = this;
         this.image.addEventListener("load", () => { self.on_image_load(); });
@@ -876,6 +880,26 @@ class Source {
         create_parameter_input(self, container, {
             attribute: "debug",
             label: "Use debugging gradient",
+            type: "boolean",
+        }, callback);
+        create_parameter_input(self, container, {
+            attribute: "noise_level",
+            label: "Input noise",
+            type: "range",
+            min: 0,
+            max: 1,
+            step: 0.01
+        }, callback);
+        create_parameter_input(self, container, {
+            attribute: "noise_scale",
+            label: "Noise scale",
+            type: "range",
+            min: 1,
+            max: 16,
+        }, callback);
+        create_parameter_input(self, container, {
+            attribute: "grey_noise",
+            label: "Grayscale noise",
             type: "boolean",
         }, callback);
     }
@@ -901,10 +925,16 @@ class Source {
         }
         this.canvas.width = this.width;
         this.canvas.height = this.height;
+        this.controller.update();
+    }
+
+    update() {
         let context = this.canvas.getContext("2d");
         context.drawImage(this.image, 0, 0, this.width, this.height);
-        this.data = context.getImageData(0, 0, this.width, this.height).data;
-        this.controller.update();
+        let imagedata = context.getImageData(0, 0, this.width, this.height);
+        apply_noise(imagedata, this.noise_level, this.noise_scale, this.grey_noise);
+        context.putImageData(imagedata, 0, 0);
+        this.data = imagedata.data;
     }
 
     load_url(url) {
