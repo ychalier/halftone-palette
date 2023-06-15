@@ -596,13 +596,13 @@ class Screen {
             attribute: "dot_style",
             label: "Dot style",
             type: "select",
-            options: ["euclidean", "circle", "ellipse", "triangle", "hexagon"]
+            options: ["dot", "euclidean", "circle", "ellipse", "triangle", "square", "hexagon"]
         }, callback);
         create_parameter_input(self, this.element, {
             attribute: "channel",
             label: "Channel",
             type: "select",
-            options: ["darkness", "red", "green", "blue", "yellow", "magenta", "cyan"]
+            options: ["darkness", "red", "green", "blue", "cyan", "magenta", "yellow"]
         }, callback);
         create_parameter_input(self, this.element, {
             attribute: "negative",
@@ -636,10 +636,22 @@ class Screen {
         this.context.fill();
     }
 
-    draw_euclidean(x, y, intensity) {
+    draw_dot(x, y, intensity, angle) {
+        let texture_index = Math.round(intensity * (DOTS_TEXTURE_PACK.length - 1));
+        let texture = DOTS_TEXTURE_PACK[texture_index];
+        texture.draw(this.context, x, y, this.grid_size * this.raster_size, angle);
+    }
+
+    draw_euclidean(x, y, intensity, angle) {
         let texture_index = Math.round(intensity * (EUCLIDEAN_TEXTURE_PACK.length - 1));
         let texture = EUCLIDEAN_TEXTURE_PACK[texture_index];
         texture.draw(this.context, x, y, this.grid_size * this.raster_size, angle);
+    }
+
+    draw_square(x, y, intensity, angle) {
+        let radius = intensity * this.grid_size * this.raster_size;
+        draw_rotated_square(this.context, x, y, radius, angle);
+        this.context.fill();
     }
 
     update() {
@@ -660,10 +672,12 @@ class Screen {
         let col_end = 2 * grid_width;
 
         let drawf = (x, y, i) => { this.draw_circle(x, y, i); };
-        if (this.dot_style == "euclidean") drawf = (x, y, i) => { this.draw_euclidean_dot(x, y, i); };
+        if (this.dot_style == "dot") drawf = (x, y, i) => { this.draw_dot(x, y, i, angle); };
+        if (this.dot_style == "euclidean") drawf = (x, y, i) => { this.draw_euclidean(x, y, i, angle); };
         if (this.dot_style == "circle") drawf = (x, y, i) => { this.draw_circle(x, y, i); };
         if (this.dot_style == "ellipse") drawf = (x, y, i) => { this.draw_ellipse(x, y, i); };
         if (this.dot_style == "triangle") drawf = (x, y, i) => { this.draw_regular_shape(x, y, i, 3, Math.PI); };
+        if (this.dot_style == "square") drawf = (x, y, i) => { this.draw_square(x, y, i, angle); };
         if (this.dot_style == "hexagon") drawf = (x, y, i) => { this.draw_regular_shape(x, y, i, 6, Math.PI / 6); };
 
         for (let i = row_start; i < row_end; i++) {
