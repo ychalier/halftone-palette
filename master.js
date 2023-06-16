@@ -966,6 +966,7 @@ class Source {
     constructor(controller, size) {
         this.controller = controller;
         this.canvas = document.getElementById("source-image");
+        this.context = this.canvas.getContext("2d");
         this.image = new Image();
         this.image.crossOrigin = "anonymous";
         this.size = size;
@@ -1037,7 +1038,15 @@ class Source {
 
     update() {
         let context = this.canvas.getContext("2d");
-        context.drawImage(this.image, 0, 0, this.width, this.height);
+        if (this.debug) {
+            for (let j = 0; j < this.width; j++) {
+                let grey = Math.round(255 * (1 - j / (this.width - 1)));
+                context.fillStyle = `rgb(${grey}, ${grey}, ${grey})`;
+                context.fillRect(j, 0, 1, this.height);
+            }
+        } else {
+            context.drawImage(this.image, 0, 0, this.width, this.height);
+        }
         let imagedata = context.getImageData(0, 0, this.width, this.height);
         apply_noise(imagedata, this.noise_level, this.noise_scale, this.grey_noise);
         context.putImageData(imagedata, 0, 0);
@@ -1049,29 +1058,12 @@ class Source {
     }
 
     color_at(i, j) {
-        let color = {
-            red: 0,
-            green: 0,
-            blue: 0,
-            brightness: 0,
-            darkness: 0,
-            cyan: 0,
-            magenta: 0,
-            yellow: 0,
-            alpha: 0,
-        }
-        if (this.debug) {
-            for (let channel in color) {
-                color[channel] = Math.max(0, Math.min(1, j / (this.width - 1)));
-            }
-            color.alpha = 1;
-            return color;
-        }
         if (i < 0) i = 0;
         if (i >= this.height) i = this.height - 1;
         if (j < 0) j = 0;
         if (j >= this.width) j = this.width - 1;
         let k = ((i * this.width) + j) * 4;
+        let color = {};
         color.red = this.data[k] / 255;
         color.green = this.data[k + 1] / 255;
         color.blue = this.data[k + 2] / 255;
@@ -1273,6 +1265,9 @@ window.addEventListener("load", () => {
     document.getElementById("button-random-image").addEventListener("click", () => {
         controller.source.load_url(get_random_picsum_url(480));
     });
+    /*document.getElementById("button-gradient").addEventListener("click", () => {
+        controller.source.load_gradient();
+    });*/
     document.getElementById("input-image").addEventListener("change", () => {
         let image_files = document.getElementById("input-image").files;
         if (image_files.length > 0) {
