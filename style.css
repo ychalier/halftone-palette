@@ -52,6 +52,21 @@ body.light {
     margin-right: none;
 }
 
+#controller-inputs {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+#controller-inputs > * {
+    margin: 0 .4rem 0 0;
+}
+
+#controller-inputs >*:last-child {
+    margin-right: none;
+}
+
 .panels {
     display: flex;
     flex-direction: row;

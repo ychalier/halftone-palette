@@ -828,6 +828,7 @@ class Controller {
         this.screens = [];
         this.output = new Output(this, this.size);
         this.auto_update = true;
+        this.light_theme = false;
         this.screen_counter = 0;
         this.input_counter = 0;
         this.inputs = [];
@@ -840,6 +841,8 @@ class Controller {
         })
         return {
             size: this.size,
+            auto_update: this.auto_update,
+            light_theme: this.light_theme,
             source: this.source.export_config(),
             screens: screen_configs,
             output: this.output.export_config(),
@@ -852,6 +855,8 @@ class Controller {
 
     load_config(config) {
         this.size = config.size;
+        this.auto_update = config.auto_update;
+        this.light_theme = config.light_theme;
         this.source.load_config(config.source);
         this.output.load_config(config.output);
         for (let i = this.screens.length - 1; i >= 0; i--) {
@@ -882,6 +887,12 @@ class Controller {
             type: "boolean",
             preset: true,
         });
+        this.create_parameter_input(self, container, {
+            attribute: "light_theme",
+            label: "Light theme",
+            type: "boolean",
+            preset: false,
+        });
         this.source.setup();
         this.output.setup();
     }
@@ -889,6 +900,11 @@ class Controller {
     update(manual_update=false) {
         if (!manual_update && !this.auto_update) return;
         this.save_config_to_storage();
+        if (this.light_theme) {
+            document.body.classList.add("light");
+        } else {
+            document.body.classList.remove("light");
+        }
         this.source.update();
         this.screens.forEach(screen => {
             screen.update();
@@ -1106,11 +1122,17 @@ class Source {
     export_config() {
         return {
             debug: this.debug,
+            noise_level: this.noise_level,
+            noise_scale: this.noise_scale,
+            grey_noise: this.grey_noise,
         };
     }
 
     load_config(config) {
         this.debug = config.debug;
+        this.noise_level = config.noise_level;
+        this.noise_scale = config.noise_scale;
+        this.grey_noise = config.grey_noise;
     }
 
     on_image_load() {
@@ -1227,6 +1249,7 @@ class Output {
             smooth: this.smooth,
             grey_noise: this.grey_noise,
             composition_mode: this.composition_mode,
+            background: this.background,
         }
     }
 
@@ -1236,6 +1259,7 @@ class Output {
         this.grey_noise = config.grey_noise;
         this.smooth = config.smooth;
         this.composition_mode = config.composition_mode;
+        this.background = config.background;
     }
 
     setup() {
@@ -1376,14 +1400,6 @@ window.addEventListener("load", () => {
             alert("Please specify one source!");
             return;
         }
-    });
-    document.getElementById("input-theme").addEventListener("click", (event) => {
-        if (document.getElementById("input-theme").checked) {
-            document.body.classList.add("light");
-        } else {
-            document.body.classList.remove("light");
-        }
-        controller.update(true);
     });
     document.getElementById("button-reset").addEventListener("click", () => { controller.reset(); })
 });
