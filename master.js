@@ -832,6 +832,7 @@ class Controller {
         this.screen_counter = 0;
         this.input_counter = 0;
         this.inputs = [];
+        this.curve_inputs = [];
     }
 
     export_config() {
@@ -906,6 +907,9 @@ class Controller {
             document.body.classList.remove("light");
         }
         this.source.update();
+        this.curve_inputs.forEach(input => {
+            input.element.update(false);
+        });
         this.screens.forEach(screen => {
             screen.update();
         });
@@ -1024,7 +1028,7 @@ class Controller {
             value_span: value_span,
             options: options,
             element: input,
-        })
+        });
     }
 
     create_curve_input(ref, container, attribute) {
@@ -1041,6 +1045,11 @@ class Controller {
             curve_input.dots.push([x, y]);
         }
         curve_input.update(false);
+        this.curve_inputs.push({
+            ref: ref,
+            attribute: attribute,
+            element: curve_input,
+        });
     }
 
     reset(filter_ref) {
@@ -1057,6 +1066,12 @@ class Controller {
                 }
                 input.ref[input.options.attribute] = input.options.preset;
                 if (input.value_span != null) input.value_span.textContent = ` (${input.options.preset})`;
+            }
+        });
+        this.curve_inputs.forEach(input => {
+            if (filter_ref == undefined || filter_ref == input.ref) {
+                input.element.dots = [[0, 0], [1, 1]];
+                input.ref[input.attribute] = new LagrangeInterpolation([[0, 0], [1, 1]]);
             }
         });
         this.update();
