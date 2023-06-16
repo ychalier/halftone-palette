@@ -1400,11 +1400,15 @@ window.addEventListener("load", () => {
     let controller = new Controller(512);
     controller.load_config_from_storage();
     controller.setup();
-    controller.source.load_url("mountain.jpg");
+    if (Math.random() < .5) {
+        controller.source.load_url("img/david.png");
+    } else {
+        controller.source.load_url("img/mountain.jpg");
+    }
     document.getElementById("button-add-screen").addEventListener("click", () => { controller.add_screen(); });
     document.getElementById("button-export").addEventListener("click", () => { controller.output.export(); });
     document.getElementById("button-random-image").addEventListener("click", () => {
-        controller.source.load_url(get_random_picsum_url(480));
+        controller.source.load_url(get_random_picsum_url(480) + `?random=${parseInt(Math.random() * 1000000)}`);
     });
     document.getElementById("button-update").addEventListener("click", () => { controller.update(true); });
     document.getElementById("input-image").addEventListener("change", () => {

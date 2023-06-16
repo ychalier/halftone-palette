@@ -188,6 +188,10 @@ select {
     margin-top: .4rem;
 }
 
+#source-panel button {
+    margin-top: .4rem;
+}
+
 .input-group label {
     user-select: none;
 }
