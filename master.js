@@ -37,6 +37,7 @@ function get_property(obj, key, default_) {
 
 
 var input_counter = 0;
+var screen_counter = 0;
 
 
 class LagrangeInterpolation {
@@ -934,7 +935,8 @@ class Controller {
             this.delete_screen_at(i);
         }
         config.screens.forEach(screen_config => {
-            let screen = new Screen(this.screens.length, this);
+            let screen = new Screen(screen_counter, this);
+            screen_counter++;
             screen.load_config(screen_config);
             screen.setup();
             this.screens.push(screen);
@@ -972,7 +974,8 @@ class Controller {
     }
 
     add_screen(should_update=true) {
-        let screen = new Screen(this.screens.length, this);
+        let screen = new Screen(screen_counter, this);
+        screen_counter++;
         screen.setup();
         this.screens.push(screen);
         if (should_update) this.update();
