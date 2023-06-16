@@ -31,15 +31,6 @@ function is_integer(x) {
 }
 
 
-function get_property(obj, key, default_) {
-    return (key in obj) ? obj[key] : default_;
-}
-
-
-var input_counter = 0;
-var screen_counter = 0;
-
-
 class LagrangeInterpolation {
 
     /* Adapted from https://gist.github.com/dburner/8550030 */
@@ -242,97 +233,6 @@ class CurveInput {
 
     }
 
-}
-
-
-function create_parameter_input(ref, container, options, callback) {
-    let group = document.createElement("div");
-    group.classList.add("input-group");
-    if (options.type == "boolean") {
-        group.classList.add("input-group-boolean");
-    }
-    input_counter++;
-    let input_id = `input-${input_counter}`;
-    let label = document.createElement("label");
-    label.textContent = options.label;
-    label.setAttribute("for", input_id);
-    group.appendChild(label);
-    let input = null;
-    let value_span = null;
-    if (options.type == "range") {
-        input = document.createElement("input");
-        input.type = "range";
-        input.min = options.min;
-        input.max = options.max;
-        input.step = get_property(options, "step", 1);
-        input.value = ref[options.attribute];
-        value_span = document.createElement("span");
-    } else if (options.type == "color") {
-        input = document.createElement("input");
-        input.value = ref[options.attribute];
-        input.type = "color";
-    } else if (options.type == "boolean") {
-        input = document.createElement("input");
-        input.type = "checkbox";
-        if (ref[options.attribute]) input.checked = true;
-    } else if (options.type == "select") {
-        input = document.createElement("select");
-        options.options.forEach(option => {
-            let option_element = document.createElement("option");
-            option_element.value = option; //TODO: consider using option label/value
-            option_element.textContent = option;
-            if (ref[options.attribute] == option) {
-                option_element.selected = true;
-            }
-            input.appendChild(option_element);
-        });
-    }
-    input.id = input_id;
-    group.appendChild(input);
-    if (value_span != null) {
-        value_span.textContent = ` (${ref[options.attribute]})`;
-        label.appendChild(value_span);
-    }
-    input.addEventListener("input", () => {
-        let new_value = null;
-        if (options.type == "range") {
-            if (is_integer(input.step)) {
-                new_value = parseInt(input.value);
-            } else {
-                new_value = parseFloat(input.value);
-            }
-        } else if (options.type == "color") {
-            new_value = input.value;
-        } else if (options.type == "boolean") {
-            new_value = input.checked;
-        } else if (options.type == "select") {
-            input.querySelectorAll("option").forEach(option => {
-                if (option.selected) {
-                    new_value = option.value;
-                }
-            });
-        }
-        ref[options.attribute] = new_value;
-        if (value_span != null) value_span.textContent = ` (${new_value})`;
-        if (callback) callback();
-    });
-    container.appendChild(group);
-}
-
-
-function create_curve_input(ref, container, attribute, callback) {
-    let curve_input = new CurveInput((interpolation) => {
-        ref[attribute] = interpolation;
-        callback();
-    });
-    curve_input.setup(container);
-    curve_input.dots = [];
-    for (let i = 0; i < ref[attribute].xs.length; i++) {
-        let x = ref[attribute].xs[i];
-        let y = ref[attribute].ys[i];
-        curve_input.dots.push([x, y]);
-    }
-    curve_input.update(false);
 }
 
 
@@ -549,7 +449,6 @@ class Screen {
     }
 
     load_config(config) {
-        this.index = config.index;
         this.angle_degree = config.angle_degree;
         this.grid_size = config.grid_size;
         this.raster_size = config.raster_size;
@@ -644,6 +543,14 @@ class Screen {
         });
         button_group.appendChild(animate_button);
 
+        let reset_button = document.createElement("button");
+        reset_button.className = "button-icon bi-x-circle";
+        reset_button.title = "Reset";
+        reset_button.addEventListener("click", () => {
+            self.controller.reset(self);
+        });
+        button_group.appendChild(reset_button);
+
         let panel_inputs = document.createElement("div");
         panel_inputs.classList.add("panel-inputs");
         body.appendChild(panel_inputs);
@@ -651,90 +558,103 @@ class Screen {
 
     setup() {
         this.create_element();
-        var self = this;
-        let callback = () => { self.controller.update(); };
         let container = this.element.querySelector(".panel-inputs");
-        create_parameter_input(self, container, {
+        this.controller.create_parameter_input(this, container, {
             attribute: "toggled",
             label: "Toggle",
-            type: "boolean"
-        }, callback);
-        create_parameter_input(self, container, {
+            type: "boolean",
+            preset: true,
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "angle_degree",
             label: "Angle",
             type: "range",
             min: 0,
             max: 90,
-        }, callback);
-        create_parameter_input(self, container, {
+            step: 1,
+            preset: 30,
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "grid_size",
             label: "Grid size",
             type: "range",
             min: 4,
             max: 64,
-        }, callback);
-        create_parameter_input(self, container, {
+            step: 1,
+            preset: 16,
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "offset_x",
             label: "Offset X",
             type: "range",
             min: 0,
             max: 1,
             step: 0.01,
-        }, callback);
-        create_parameter_input(self, container, {
+            preset: 0,
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "offset_y",
             label: "Offset Y",
             type: "range",
             min: 0,
             max: 1,
             step: 0.01,
-        }, callback);
-        create_parameter_input(self, container, {
+            preset: 0,
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "interlaced",
             label: "Interlaced",
             type: "boolean",
-        }, callback);
-        create_parameter_input(self, container, {
+            preset: true,
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "show_grid",
             label: "Show grid",
             type: "boolean",
-        }, callback);
-        create_parameter_input(self, container, {
+            preset: false,
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "collapsed",
             label: "Collapse",
             type: "boolean",
-        }, callback);
-        create_parameter_input(self, container, {
+            preset: false,
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "raster_size",
             label: "Dot size ratio",
             type: "range",
             min: 0,
             max: 2,
-            step: 0.01
-        }, callback);
-        create_parameter_input(self, container, {
+            step: 0.01,
+            preset: 1,
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "color",
             label: "Dot color",
             type: "color",
-        }, callback);
-        create_parameter_input(self, container, {
+            preset: "#000000",
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "dot_style",
             label: "Dot style",
             type: "select",
-            options: ["dot", "euclidean", "bayer4", "bayer8", "circle", "ellipse", "triangle", "square", "hexagon"]
-        }, callback);
-        create_parameter_input(self, container, {
+            options: ["dot", "euclidean", "bayer4", "bayer8", "circle", "ellipse", "triangle", "square", "hexagon"],
+            preset: "circle",
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "channel",
             label: "Channel",
             type: "select",
-            options: ["darkness", "red", "green", "blue", "cyan", "magenta", "yellow"]
-        }, callback);
-        create_parameter_input(self, container, {
+            options: ["darkness", "red", "green", "blue", "cyan", "magenta", "yellow"],
+            preset: "darkness",
+        });
+        this.controller.create_parameter_input(this, container, {
             attribute: "negative",
             label: "Negative",
             type: "boolean",
-        }, callback);
-        create_curve_input(self, container, "tone_curve", callback);
+            preset: false,
+        });
+        this.controller.create_curve_input(this, container, "tone_curve");
     }
 
     draw_circle(x, y, intensity) {
@@ -908,6 +828,9 @@ class Controller {
         this.screens = [];
         this.output = new Output(this, this.size);
         this.auto_update = true;
+        this.screen_counter = 0;
+        this.input_counter = 0;
+        this.inputs = [];
     }
 
     export_config() {
@@ -935,8 +858,8 @@ class Controller {
             this.delete_screen_at(i);
         }
         config.screens.forEach(screen_config => {
-            let screen = new Screen(screen_counter, this);
-            screen_counter++;
+            let screen = new Screen(this.screen_counter, this);
+            this.screen_counter++;
             screen.load_config(screen_config);
             screen.setup();
             this.screens.push(screen);
@@ -953,12 +876,12 @@ class Controller {
     setup() {
         var self = this;
         let container = document.getElementById("controller-inputs");
-        let callback = () => { self.update(); };
-        create_parameter_input(self, container, {
+        this.create_parameter_input(self, container, {
             attribute: "auto_update",
             label: "Auto update",
-            type: "boolean"
-        }, callback);
+            type: "boolean",
+            preset: true,
+        });
         this.source.setup();
         this.output.setup();
     }
@@ -974,8 +897,8 @@ class Controller {
     }
 
     add_screen(should_update=true) {
-        let screen = new Screen(screen_counter, this);
-        screen_counter++;
+        let screen = new Screen(this.screen_counter, this);
+        this.screen_counter++;
         screen.setup();
         this.screens.push(screen);
         if (should_update) this.update();
@@ -996,6 +919,130 @@ class Controller {
         if (i == null) return;
         this.screens[i].element.parentElement.removeChild(this.screens[i].element);
         this.screens.splice(i, 1);
+        this.update();
+    }
+
+    create_parameter_input(ref, container, options) {
+        let group = document.createElement("div");
+        group.classList.add("input-group");
+        if (options.type == "boolean") {
+            group.classList.add("input-group-boolean");
+        }
+        this.input_counter++;
+        let input_id = `input-${this.input_counter}`;
+        let label = document.createElement("label");
+        label.textContent = options.label;
+        label.setAttribute("for", input_id);
+        group.appendChild(label);
+        let input = null;
+        let value_span = null;
+        var self = this;
+        if (options.type == "range") {
+            input = document.createElement("input");
+            input.type = "range";
+            input.min = options.min;
+            input.max = options.max;
+            input.step = options.step;
+            input.value = ref[options.attribute];
+            value_span = document.createElement("span");
+        } else if (options.type == "color") {
+            input = document.createElement("input");
+            input.value = ref[options.attribute];
+            input.type = "color";
+        } else if (options.type == "boolean") {
+            input = document.createElement("input");
+            input.type = "checkbox";
+            if (ref[options.attribute]) input.checked = true;
+        } else if (options.type == "select") {
+            input = document.createElement("select");
+            options.options.forEach(option => {
+                let option_element = document.createElement("option");
+                option_element.value = option; //TODO: consider using option label/value
+                option_element.textContent = option;
+                if (ref[options.attribute] == option) {
+                    option_element.selected = true;
+                }
+                input.appendChild(option_element);
+            });
+        }
+        input.id = input_id;
+        group.appendChild(input);
+        if (value_span != null) {
+            value_span.textContent = ` (${ref[options.attribute]})`;
+            label.appendChild(value_span);
+        }
+        input.addEventListener("input", () => {
+            let new_value = null;
+            if (options.type == "range") {
+                if (is_integer(input.step)) {
+                    new_value = parseInt(input.value);
+                } else {
+                    new_value = parseFloat(input.value);
+                }
+            } else if (options.type == "color") {
+                new_value = input.value;
+            } else if (options.type == "boolean") {
+                new_value = input.checked;
+            } else if (options.type == "select") {
+                input.querySelectorAll("option").forEach(option => {
+                    if (option.selected) {
+                        new_value = option.value;
+                    }
+                });
+            }
+            ref[options.attribute] = new_value;
+            if (value_span != null) value_span.textContent = ` (${new_value})`;
+            self.update();
+        });
+        if (options.type == "range") {
+            input.addEventListener("dblclick", () => {
+                input.value = options.preset;
+                ref[options.attribute] = options.preset;
+                if (value_span != null) value_span.textContent = ` (${options.preset})`;
+                self.update();
+            });
+        }
+        container.appendChild(group);
+        this.inputs.push({
+            ref: ref,
+            value_span: value_span,
+            options: options,
+            element: input,
+        })
+    }
+
+    create_curve_input(ref, container, attribute) {
+        var self = this;
+        let curve_input = new CurveInput((interpolation) => {
+            ref[attribute] = interpolation;
+            self.update();
+        });
+        curve_input.setup(container);
+        curve_input.dots = [];
+        for (let i = 0; i < ref[attribute].xs.length; i++) {
+            let x = ref[attribute].xs[i];
+            let y = ref[attribute].ys[i];
+            curve_input.dots.push([x, y]);
+        }
+        curve_input.update(false);
+    }
+
+    reset(filter_ref) {
+        this.inputs.forEach(input => {
+            if (filter_ref == undefined || filter_ref == input.ref) {
+                if (input.options.type == "range" || input.options.type == "color") {
+                    input.element.value = input.options.preset;
+                } else if (input.options.type == "boolean") {
+                    input.element.checked = input.options.preset;
+                } else if (input.options.type == "select") {
+                    input.element.querySelectorAll("option").forEach(option => {
+                        option.selected = option.value == input.options.preset;
+                    });
+                }
+                input.ref[input.options.attribute] = input.options.preset;
+                if (input.value_span != null) input.value_span.textContent = ` (${input.options.preset})`;
+            }
+        });
         this.update();
     }
 
@@ -1025,32 +1072,35 @@ class Source {
     setup() {
         let container = document.getElementById("source-panel-inputs");
         var self = this;
-        let callback = () => { self.controller.update(); };
-        create_parameter_input(self, container, {
+        this.controller.create_parameter_input(self, container, {
             attribute: "debug",
             label: "Use debugging gradient",
             type: "boolean",
-        }, callback);
-        create_parameter_input(self, container, {
+        });
+        this.controller.create_parameter_input(self, container, {
             attribute: "noise_level",
             label: "Input noise",
             type: "range",
             min: 0,
             max: 1,
-            step: 0.01
-        }, callback);
-        create_parameter_input(self, container, {
+            step: 0.01,
+            preset: 0,
+        });
+        this.controller.create_parameter_input(self, container, {
             attribute: "noise_scale",
             label: "Noise scale",
             type: "range",
             min: 1,
             max: 16,
-        }, callback);
-        create_parameter_input(self, container, {
+            step: 1,
+            preset: 1,
+        });
+        this.controller.create_parameter_input(self, container, {
             attribute: "grey_noise",
             label: "Grayscale noise",
             type: "boolean",
-        }, callback);
+            preset: false,
+        });
     }
 
     export_config() {
@@ -1191,43 +1241,49 @@ class Output {
     setup() {
         let container = document.getElementById("output-panel-inputs");
         var self = this;
-        let callback = () => { self.controller.update(); };
-        create_parameter_input(self, container, {
+        this.controller.create_parameter_input(self, container, {
             attribute: "noise_level",
             label: "Output noise",
             type: "range",
             min: 0,
             max: 1,
-            step: 0.01
-        }, callback);
-        create_parameter_input(self, container, {
+            step: 0.01,
+            preset: 0,
+        });
+        this.controller.create_parameter_input(self, container, {
             attribute: "noise_scale",
             label: "Noise scale",
             type: "range",
             min: 1,
             max: 16,
-        }, callback);
-        create_parameter_input(self, container, {
+            step: 1,
+            preset: 1,
+        });
+        this.controller.create_parameter_input(self, container, {
             attribute: "grey_noise",
             label: "Grayscale noise",
             type: "boolean",
-        }, callback);
-        create_parameter_input(self, container, {
+            preset: true,
+        });
+        this.controller.create_parameter_input(self, container, {
             attribute: "smooth",
             label: "Smooth",
             type: "boolean",
-        }, callback);
-        create_parameter_input(self, container, {
+            preset: true,
+        });
+        this.controller.create_parameter_input(self, container, {
             attribute: "background",
             label: "Background color",
-            type: "color"
-        }, callback);
-        create_parameter_input(self, container, {
+            type: "color",
+            preset: "#ffffff",
+        });
+        this.controller.create_parameter_input(self, container, {
             attribute: "composition_mode",
             label: "Composition mode",
             type: "select",
             options: ["normal", "additive", "subtractive"],
-        }, callback);
+            preset: "normal",
+        });
     }
 
     update() {
@@ -1328,5 +1384,6 @@ window.addEventListener("load", () => {
             document.body.classList.remove("light");
         }
         controller.update(true);
-    })
+    });
+    document.getElementById("button-reset").addEventListener("click", () => { controller.reset(); })
 });
