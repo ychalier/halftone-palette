@@ -1248,6 +1248,19 @@ class Output {
 }
 
 
+function get_random_picsum_url(size) {
+    let width = size;
+    let height = size;
+    let blob = Math.random();
+    if (blob < .333) {
+        width = Math.floor(size / 3 * 2);
+    } else if (blob < .667) {
+        height = Math.floor(size / 3 * 2);
+    }
+    return `https://picsum.photos/${width}/${height}`;
+}
+
+
 window.addEventListener("load", () => {
     let controller = new Controller(512);
     controller.load_config_from_storage();
@@ -1256,6 +1269,9 @@ window.addEventListener("load", () => {
     document.getElementById("button-add-screen").addEventListener("click", () => { controller.add_screen(); });
     document.getElementById("button-export").addEventListener("click", () => { controller.output.export(); });
     document.getElementById("button-export-2").addEventListener("click", () => { controller.output.export(2); });
+    document.getElementById("button-random-image").addEventListener("click", () => {
+        controller.source.load_url(get_random_picsum_url(480));
+    });
     document.getElementById("input-image").addEventListener("change", () => {
         let image_files = document.getElementById("input-image").files;
         if (image_files.length > 0) {
