@@ -131,14 +131,6 @@ class CurveInput {
         this.canvas.height = this.size + 2 * this.padding;
         container.appendChild(this.canvas);
         this.context = this.canvas.getContext("2d");
-        
-        let color = "white";
-        if (document.body.classList.contains("light")) {
-            color = "black";
-        }
-        this.context.fillStyle = color;
-        this.context.strokeStyle = color;
-
         var self = this;
         
         this.canvas.addEventListener("mousedown", (event) => {
@@ -207,6 +199,13 @@ class CurveInput {
     }
 
     update(trigger_callback=true) {
+        let color = "white";
+        if (document.body.classList.contains("light")) {
+            color = "black";
+        }
+        this.context.fillStyle = color;
+        this.context.strokeStyle = color;
+
         this.context.clearRect(0, 0, this.size + 2 * this.padding, this.size + 2 * this.padding);
         this.dots.forEach(dot => {
             let x = dot[0] * this.size - this.radius + this.padding;
@@ -1319,4 +1318,12 @@ window.addEventListener("load", () => {
             return;
         }
     });
+    document.getElementById("input-theme").addEventListener("click", (event) => {
+        if (document.getElementById("input-theme").checked) {
+            document.body.classList.add("light");
+        } else {
+            document.body.classList.remove("light");
+        }
+        controller.update(true);
+    })
 });
