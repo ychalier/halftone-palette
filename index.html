@@ -5,28 +5,48 @@
 <head>
     <meta charset="utf8">
     <title>Halftone Palette</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu+Mono&display=swap" rel="stylesheet"> 
     <link rel="stylesheet" href="style.css" />
     <script src="master.js"></script>
 </head>
 
 <body>
-    <div id="config">
-        <div id="source-wrapper">
-            <canvas id="source-image"></canvas>
-            <input type="file" id="input-image" accept="image/*" />
-            <button id="button-random-image">Random</button>
-        </div>
-        <div id="controller-wrapper">
-            <button id="button-add-screen">Add screen</button><br>
-            <button id="button-update">Update</button>
-        </div>
-        <div id="output-wrapper">
-            <button id="button-export">Export as PNG</button><br>
-            <button id="button-export-2">Export as 2*PNG</button>
-        </div>
+    <div id="header">
+        <button id="button-reset" disabled>Reset</button>
+        <button id="button-add-screen">Add screen</button>
+        <button id="button-update">Update</button>
+        <div id="controller-inputs"></div>
+        <button id="button-export">Export</button>
+        <select id="select-export-scale">
+            <option value="1" selected>1X</option>
+            <option value="2">2X</option>
+            <option value="4">4X</option>
+        </select>
     </div>
-    <div id="canvas-wrapper">
-        <canvas id="canvas"></canvas>
+    <div class="panels">
+        <div id="source-panel" class="panel">
+            <div class="panel-title">Source</div>
+            <div class="panel-body">
+                <canvas id="source-canvas"></canvas>
+                <div class="input-group">
+                    <label id="input-image-label" for="input-image">Upload</label>
+                    <input type="file" id="input-image" accept="image/*" />
+                </div>
+                <button id="button-random-image">Random</button>
+                <div id="source-panel-inputs" class="panel-inputs"></div>
+            </div>
+        </div>
+        <div id="screen-panels"></div>
+        <div id="output-panel" class="panel">
+            <div class="panel-title">Output</div>
+            <div class="panel-body">
+                <canvas id="output-canvas"></canvas>
+                <div id="output-panel-inputs" class="panel-inputs"></div>
+            </div>
+        </div>
     </div>
 </body>
 

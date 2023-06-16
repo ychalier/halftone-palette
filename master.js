@@ -124,14 +124,20 @@ class CurveInput {
         ];
     }
 
-    setup(container) {        
+    setup(container) {
         this.canvas = document.createElement("canvas");
+        this.canvas.classList.add("curve-input");
         this.canvas.width = this.size + 2 * this.padding;
         this.canvas.height = this.size + 2 * this.padding;
         container.appendChild(this.canvas);
         this.context = this.canvas.getContext("2d");
-        this.context.fillStyle = "white";
-        this.context.strokeStyle = "white";
+        
+        let color = "white";
+        if (document.body.classList.contains("light")) {
+            color = "black";
+        }
+        this.context.fillStyle = color;
+        this.context.strokeStyle = color;
 
         var self = this;
         
@@ -563,27 +569,43 @@ class Screen {
     create_element() {
         this.element = document.createElement("div");
         this.element.classList.add("screen");
-        document.getElementById("config").appendChild(this.element);
+        this.element.classList.add("panel");
+        document.getElementById("screen-panels").appendChild(this.element);
         
+        let title = document.createElement("div");
+        title.classList.add("panel-title");
+        title.textContent = `Screen #${ this.index }`;
+        this.element.appendChild(title);
+        let body = document.createElement("div");
+        body.classList.add("panel-body");
+        this.element.appendChild(body);
+
         var self = this;
+
+        let button_group = document.createElement("div");
+        button_group.classList.add("btn-group");
+        body.appendChild(button_group);
         
         let delete_button = document.createElement("button");
-        delete_button.textContent = "Delete";
+        delete_button.className = "button-icon bi-trash";
+        delete_button.title = "Delete";
         delete_button.addEventListener("click", () => {
             self.controller.delete_screen(this.index);
         });
-        this.element.appendChild(delete_button);
+        button_group.appendChild(delete_button);
 
         let copy_button = document.createElement("button");
-        copy_button.textContent = "Copy";
+        copy_button.className = "button-icon bi-clipboard";
+        copy_button.title = "Copy";
         copy_button.addEventListener("click", () => {
             COPIED_STRING = JSON.stringify(self.export_config());
             navigator.clipboard.writeText(COPIED_STRING);
         });
-        this.element.appendChild(copy_button);
+        button_group.appendChild(copy_button);
 
         let paste_button = document.createElement("button");
-        paste_button.textContent = "Paste";
+        paste_button.className = "button-icon bi-clipboard-fill";
+        paste_button.title = "Paste";
         paste_button.addEventListener("click", () => {
             if (COPIED_STRING != null) {
                 let config = JSON.parse(COPIED_STRING);
@@ -592,18 +614,21 @@ class Screen {
                 self.setup();
             }
         });
-        this.element.appendChild(paste_button);
+        button_group.appendChild(paste_button);
 
         let animate_button = document.createElement("button");
-        animate_button.textContent = "Animate";
+        animate_button.className = "button-icon bi-play-fill";
+        animate_button.title = "Animate";
         animate_button.addEventListener("click", () => {
             if (self.animated) {
                 self.animation_offset = 0;
                 self.animated = false;
-                animate_button.textContent = "Animate";
+                animate_button.classList.remove("bi-pause-fill");
+                animate_button.classList.add("bi-play-fill");
             } else {
                 self.animated = true;
-                animate_button.textContent = "Stop";
+                animate_button.classList.add("bi-pause-fill");
+                animate_button.classList.remove("bi-play-fill");
                 function animate() {
                     if (self.animation_offset >= 1) self.animation_offset -= 1;
                     self.animation_offset += 0.01;
@@ -617,33 +642,38 @@ class Screen {
                 animate();
             }
         });
-        this.element.appendChild(animate_button);
+        button_group.appendChild(animate_button);
+
+        let panel_inputs = document.createElement("div");
+        panel_inputs.classList.add("panel-inputs");
+        body.appendChild(panel_inputs);
     }
 
     setup() {
         this.create_element();
         var self = this;
         let callback = () => { self.controller.update(); };
-        create_parameter_input(self, this.element, {
+        let container = this.element.querySelector(".panel-inputs");
+        create_parameter_input(self, container, {
             attribute: "toggled",
             label: "Toggle",
             type: "boolean"
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "angle_degree",
             label: "Angle",
             type: "range",
             min: 0,
             max: 90,
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "grid_size",
             label: "Grid size",
             type: "range",
             min: 4,
             max: 64,
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "offset_x",
             label: "Offset X",
             type: "range",
@@ -651,7 +681,7 @@ class Screen {
             max: 1,
             step: 0.01,
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "offset_y",
             label: "Offset Y",
             type: "range",
@@ -659,22 +689,22 @@ class Screen {
             max: 1,
             step: 0.01,
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "interlaced",
             label: "Interlaced",
             type: "boolean",
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "show_grid",
             label: "Show grid",
             type: "boolean",
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "collapsed",
             label: "Collapse",
             type: "boolean",
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "raster_size",
             label: "Dot size ratio",
             type: "range",
@@ -682,29 +712,29 @@ class Screen {
             max: 2,
             step: 0.01
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "color",
             label: "Dot color",
             type: "color",
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "dot_style",
             label: "Dot style",
             type: "select",
             options: ["dot", "euclidean", "bayer4", "bayer8", "circle", "ellipse", "triangle", "square", "hexagon"]
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "channel",
             label: "Channel",
             type: "select",
             options: ["darkness", "red", "green", "blue", "cyan", "magenta", "yellow"]
         }, callback);
-        create_parameter_input(self, this.element, {
+        create_parameter_input(self, container, {
             attribute: "negative",
             label: "Negative",
             type: "boolean",
         }, callback);
-        create_curve_input(self, this.element, "tone_curve", callback);
+        create_curve_input(self, container, "tone_curve", callback);
     }
 
     draw_circle(x, y, intensity) {
@@ -921,7 +951,7 @@ class Controller {
 
     setup() {
         var self = this;
-        let container = document.getElementById("controller-wrapper");
+        let container = document.getElementById("controller-inputs");
         let callback = () => { self.update(); };
         create_parameter_input(self, container, {
             attribute: "auto_update",
@@ -974,7 +1004,7 @@ class Source {
 
     constructor(controller, size) {
         this.controller = controller;
-        this.canvas = document.getElementById("source-image");
+        this.canvas = document.getElementById("source-canvas");
         this.context = this.canvas.getContext("2d");
         this.image = new Image();
         this.image.crossOrigin = "anonymous";
@@ -991,7 +1021,7 @@ class Source {
     }
 
     setup() {
-        let container = document.getElementById("source-wrapper");
+        let container = document.getElementById("source-panel-inputs");
         var self = this;
         let callback = () => { self.controller.update(); };
         create_parameter_input(self, container, {
@@ -1123,7 +1153,7 @@ class Output {
 
     constructor(controller, size) {
         this.controller = controller;
-        this.canvas = document.getElementById("canvas");
+        this.canvas = document.getElementById("output-canvas");
         this.size = size;
         this.width = this.size;
         this.height = this.size;
@@ -1157,7 +1187,7 @@ class Output {
     }
 
     setup() {
-        let container = document.getElementById("output-wrapper");
+        let container = document.getElementById("output-panel-inputs");
         var self = this;
         let callback = () => { self.controller.update(); };
         create_parameter_input(self, container, {
@@ -1225,7 +1255,13 @@ class Output {
         this.context.putImageData(imagedata, 0, 0);
     }
 
-    export(scale=1) {
+    export() {
+        let scale = 1;
+        document.getElementById("select-export-scale").querySelectorAll("option").forEach(option => {
+            if (option.selected) {
+                scale = parseInt(option.value);
+            }
+        });
         let export_canvas = document.createElement("canvas");
         let width = scale * this.canvas.width;
         let height = scale * this.canvas.height;
@@ -1270,7 +1306,6 @@ window.addEventListener("load", () => {
     controller.source.load_url("mountain.jpg");
     document.getElementById("button-add-screen").addEventListener("click", () => { controller.add_screen(); });
     document.getElementById("button-export").addEventListener("click", () => { controller.output.export(); });
-    document.getElementById("button-export-2").addEventListener("click", () => { controller.output.export(2); });
     document.getElementById("button-random-image").addEventListener("click", () => {
         controller.source.load_url(get_random_picsum_url(480));
     });
