@@ -877,6 +877,7 @@ class Controller {
         this.source = new Source(this, this.size);
         this.screens = [];
         this.output = new Output(this, this.size);
+        this.auto_update = true;
     }
 
     export_config() {
@@ -919,12 +920,20 @@ class Controller {
     }
 
     setup() {
+        var self = this;
+        let container = document.getElementById("controller-wrapper");
+        let callback = () => { self.update(); };
+        create_parameter_input(self, container, {
+            attribute: "auto_update",
+            label: "Auto update",
+            type: "boolean"
+        }, callback);
         this.source.setup();
         this.output.setup();
     }
 
-    update() {
-        console.log("Updating controller");
+    update(manual_update=false) {
+        if (!manual_update && !this.auto_update) return;
         this.save_config_to_storage();
         this.source.update();
         this.screens.forEach(screen => {
@@ -1265,9 +1274,7 @@ window.addEventListener("load", () => {
     document.getElementById("button-random-image").addEventListener("click", () => {
         controller.source.load_url(get_random_picsum_url(480));
     });
-    /*document.getElementById("button-gradient").addEventListener("click", () => {
-        controller.source.load_gradient();
-    });*/
+    document.getElementById("button-update").addEventListener("click", () => { controller.update(true); });
     document.getElementById("input-image").addEventListener("change", () => {
         let image_files = document.getElementById("input-image").files;
         if (image_files.length > 0) {
