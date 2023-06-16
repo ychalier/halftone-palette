@@ -515,6 +515,7 @@ class Screen {
         this.negative = false;
         this.offset_x = 0;
         this.offset_y = 0;
+        this.animation_offset = 0;
         this.animated = false;
         this.tone_curve = new LagrangeInterpolation([[0, 0], [1, 1]]);
         this.canvas = document.createElement("canvas");
@@ -556,7 +557,6 @@ class Screen {
         this.negative = config.negative;
         this.offset_x = config.offset_x;
         this.offset_y = config.offset_y;
-        this.animation_offset = 0;
         this.tone_curve.load_config(config.tone_curve);
     }
 
@@ -770,7 +770,7 @@ class Screen {
         let angle = this.angle_degree / 180 * Math.PI;
         let grid_width = this.controller.source.width / this.grid_size;
         let grid_height = this.controller.source.height / this.grid_size / (this.collapsed ? this.raster_size : 1);
-
+        
         let row_start = -grid_height;
         let row_end = 2 * grid_height;
         let col_start = -grid_width;
@@ -792,7 +792,7 @@ class Screen {
                 let coords = this.coords(i, j);
                 let x = coords[0];
                 let y = coords[1];
-                if (x < 0 || x >= this.controller.source.width || y < 0 || y >= this.controller.source.height) {
+                if (x < -this.grid_size || x >= this.controller.source.width + this.grid_size || y < -this.grid_size || y >= this.controller.source.height + this.grid_size) {
                     continue;
                 }
                 if (this.show_grid) {
@@ -807,8 +807,8 @@ class Screen {
 
     coords(i, j) {
         let angle = this.angle_degree / 180 * Math.PI;
-        let x_center = this.controller.output.width / 2;
-        let y_center = this.controller.output.height / 2;
+        let x_center = this.controller.source.width / 2;
+        let y_center = this.controller.source.height / 2;
         let y_base = i * this.grid_size + .5 * this.grid_size + this.offset_y * this.grid_size;
         if (this.collapsed) {
             y_base = i * this.grid_size * this.raster_size + .5 * this.grid_size * this.raster_size;
@@ -832,7 +832,7 @@ class Screen {
     }
 
     get_data() {
-        return this.context.getImageData(0, 0, this.controller.output.width, this.controller.output.height).data;
+        return this.context.getImageData(0, 0, this.controller.source.width, this.controller.source.height).data;
     }
 
 }
@@ -1067,9 +1067,10 @@ class Source {
             color.alpha = 1;
             return color;
         }
-        if (i < 0 || i >= this.height || j < 0 || j >= this.width) {
-            return color;
-        }
+        if (i < 0) i = 0;
+        if (i >= this.height) i = this.height - 1;
+        if (j < 0) j = 0;
+        if (j >= this.width) j = this.width - 1;
         let k = ((i * this.width) + j) * 4;
         color.red = this.data[k] / 255;
         color.green = this.data[k + 1] / 255;
