@@ -656,7 +656,7 @@ class Screen {
             attribute: "dot_style",
             label: "Dot style",
             type: "select",
-            options: ["dot", "euclidean", "bayer4", "bayer8", "circle", "ellipse", "horizontal", "vertical", "triangle", "square", "hexagon"],
+            options: ["dot", "euclidean", "bayer4", "bayer8", "circle", "ellipse", "horizontal", "vertical", "triangle", "square", "hexagon", "octagon"],
             preset: "circle",
         });
         this.controller.create_parameter_input(this, container, {
@@ -768,6 +768,7 @@ class Screen {
         if (this.dot_style == "triangle") drawf = (x, y, i) => { this.draw_regular_shape(x, y, i, 3, Math.PI); };
         if (this.dot_style == "square") drawf = (x, y, i) => { this.draw_square(x, y, i, angle); };
         if (this.dot_style == "hexagon") drawf = (x, y, i) => { this.draw_regular_shape(x, y, i, 6, Math.PI / 6); };
+        if (this.dot_style == "octagon") drawf = (x, y, i) => { this.draw_regular_shape(x, y, i, 8, Math.PI / 8); };
 
         for (let i = row_start; i < row_end; i++) {
             for (let j = col_start; j < col_end; j++) {
