@@ -654,7 +654,7 @@ class Screen {
         });
         this.controller.create_parameter_input(this, container, {
             attribute: "dot_style",
-            label: "Dot style",
+            label: "Dot shape",
             type: "select",
             options: ["dot", "euclidean", "bayer4", "bayer8", "circle", "ellipse", "horizontal", "vertical", "triangle", "square", "hexagon", "octagon"],
             preset: "circle",
@@ -1138,7 +1138,7 @@ class Source {
         var self = this;
         this.controller.create_parameter_input(self, container, {
             attribute: "debug",
-            label: "Use debugging gradient",
+            label: "Gradient",
             type: "boolean",
         });
         this.controller.create_parameter_input(self, container, {
@@ -1161,7 +1161,7 @@ class Source {
         });
         this.controller.create_parameter_input(self, container, {
             attribute: "grey_noise",
-            label: "Grayscale noise",
+            label: "Grey noise",
             type: "boolean",
             preset: false,
         });
@@ -1333,13 +1333,13 @@ class Output {
         });
         this.controller.create_parameter_input(self, container, {
             attribute: "grey_noise",
-            label: "Grayscale noise",
+            label: "Grey noise",
             type: "boolean",
             preset: true,
         });
         this.controller.create_parameter_input(self, container, {
             attribute: "smooth",
-            label: "Smooth",
+            label: "Anti-aliasing",
             type: "boolean",
             preset: true,
         });
@@ -1351,7 +1351,7 @@ class Output {
         });
         this.controller.create_parameter_input(self, container, {
             attribute: "composition_mode",
-            label: "Composition mode",
+            label: "Color mixing",
             type: "select",
             options: ["normal", "additive", "subtractive"],
             preset: "normal",
