@@ -1,10 +1,11 @@
-function rotated_square(size, angle) {
-    let half_size = size / 2;
+function rotated_rectangle(width, height, angle) {
+    let half_width = width / 2;
+    let half_height = height / 2;
     let corners = [
-        [-half_size, -half_size],
-        [-half_size, +half_size],
-        [+half_size, +half_size],
-        [+half_size, -half_size],
+        [-half_width, -half_height],
+        [-half_width, half_height],
+        [half_width, half_height],
+        [half_width, -half_height]
     ];
     let rotated = [];
     for (let k = 0; k < 4; k++) {
@@ -17,6 +18,12 @@ function rotated_square(size, angle) {
     return rotated;
 }
 
+
+function rotated_square(size, angle) {
+    return rotated_rectangle(size, size, angle);
+}
+
+
 function draw_rotated_square(context, cx, cy, size, angle) {
     let square = rotated_square(size, angle);
     context.beginPath();
@@ -25,6 +32,17 @@ function draw_rotated_square(context, cx, cy, size, angle) {
         context.lineTo(square[k % 4][0] + cx, square[k % 4][1] + cy);
     }
 }
+
+
+function draw_rotated_rectangle(context, cx, cy, width, height, angle) {
+    let rectangle = rotated_rectangle(width, height, angle);
+    context.beginPath();
+    context.moveTo(rectangle[0][0] + cx, rectangle[0][1] + cy);
+    for (let k = 1; k <= 4; k++) {
+        context.lineTo(rectangle[k % 4][0] + cx, rectangle[k % 4][1] + cy);
+    }
+}
+
 
 function is_integer(x) {
     return Math.floor(x) == x;
@@ -638,7 +656,7 @@ class Screen {
             attribute: "dot_style",
             label: "Dot style",
             type: "select",
-            options: ["dot", "euclidean", "bayer4", "bayer8", "circle", "ellipse", "triangle", "square", "hexagon"],
+            options: ["dot", "euclidean", "bayer4", "bayer8", "circle", "ellipse", "horizontal", "vertical", "triangle", "square", "hexagon"],
             preset: "circle",
         });
         this.controller.create_parameter_input(this, container, {
@@ -668,6 +686,18 @@ class Screen {
         let radius = intensity * this.grid_size / 2 * this.raster_size;
         this.context.beginPath();
         this.context.ellipse(x, y, radius, radius*0.5, -Math.PI / 4, 0, 2 * Math.PI);
+        this.context.fill();
+    }
+
+    draw_horizontal(x, y, intensity, angle) {
+        let height = intensity * this.grid_size * this.raster_size;
+        draw_rotated_rectangle(this.context, x, y, this.grid_size, height, angle);
+        this.context.fill();
+    }
+
+    draw_vertical(x, y, intensity, angle) {
+        let width = intensity * this.grid_size * this.raster_size;
+        draw_rotated_rectangle(this.context, x, y, width, this.grid_size, angle);
         this.context.fill();
     }
 
@@ -733,6 +763,8 @@ class Screen {
         if (this.dot_style == "bayer8") drawf = (x, y, i) => { this.draw_bayer8(x, y, i, angle); };
         if (this.dot_style == "circle") drawf = (x, y, i) => { this.draw_circle(x, y, i); };
         if (this.dot_style == "ellipse") drawf = (x, y, i) => { this.draw_ellipse(x, y, i); };
+        if (this.dot_style == "horizontal") drawf = (x, y, i) => { this.draw_horizontal(x, y, i, angle); };
+        if (this.dot_style == "vertical") drawf = (x, y, i) => { this.draw_vertical(x, y, i, angle); };
         if (this.dot_style == "triangle") drawf = (x, y, i) => { this.draw_regular_shape(x, y, i, 3, Math.PI); };
         if (this.dot_style == "square") drawf = (x, y, i) => { this.draw_square(x, y, i, angle); };
         if (this.dot_style == "hexagon") drawf = (x, y, i) => { this.draw_regular_shape(x, y, i, 6, Math.PI / 6); };
