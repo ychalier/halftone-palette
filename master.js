@@ -663,7 +663,7 @@ class Screen {
             attribute: "channel",
             label: "Channel",
             type: "select",
-            options: ["darkness", "red", "green", "blue", "cyan", "magenta", "yellow"],
+            options: ["darkness", "red", "green", "blue", "cyan", "magenta", "yellow", "hue", "saturation", "lightness"],
             preset: "darkness",
         });
         this.controller.create_parameter_input(this, container, {
@@ -1113,6 +1113,31 @@ class Controller {
 }
 
 
+function rgb_to_hsl(r, g, b) {
+    /* Inputs and outputs are in [0, 1] */
+    let cmax = Math.max(r, g, b);
+    let cmin = Math.min(r, g, b);
+    let delta = cmax - cmin;
+    let hue = 0;
+    if (delta > 0) {
+        if (cmax == r) {
+            hue = 60 * ((g - b) / delta % 6);
+        } else if (cmax == g) {
+            hue = 60 * ((b - r) / delta + 2);
+        } else {
+            hue = 60 * ((r - g) / delta + 4);
+        }
+    }
+    let lightness = (cmax + cmin) / 2;
+    let saturation = delta == 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+    return {
+        h: hue / 360,
+        s: saturation,
+        l: lightness
+    };
+}
+
+
 class Source {
 
     constructor(controller, size) {
@@ -1228,12 +1253,16 @@ class Source {
         color.red = this.data[k] / 255;
         color.green = this.data[k + 1] / 255;
         color.blue = this.data[k + 2] / 255;
+        let hsl = rgb_to_hsl(color.red, color.green, color.blue);
         color.alpha = this.data[k + 3] / 255;
         color.brightness = (color.red + color.green + color.blue) / 3;
         color.darkness = 1 - color.brightness;
         color.cyan = 1 - color.red;
         color.magenta = 1 - color.green;
         color.yellow = 1 - color.blue;
+        color.hue = hsl.h;
+        color.saturation = hsl.s;
+        color.lightness = hsl.l;
         return color;
     }
 
