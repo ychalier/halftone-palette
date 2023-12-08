@@ -4,5 +4,5 @@ An online tool for generating and customizing [halftone](https://en.wikipedia.or
 
 ![](img/demo.png)
 
-- [Try it yourself!](https://ychalier.github.io/halftone-palette/)
+- [Try it yourself!](https://chalier.fr/halftone-palette/)
 - [Read about what's in it](https://chalier.fr/blog/halftone-palette)
